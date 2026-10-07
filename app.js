@@ -642,44 +642,53 @@
     render();
   });
 
-  let lastAddTap = 0;
   function handleAddLine(event) {
-    if (event) {
+    if (event && typeof event.preventDefault === "function") {
       event.preventDefault();
-      event.stopPropagation();
     }
-    const now = Date.now();
-    if (now - lastAddTap < 400) return; // ignore click+touchend double fire
-    lastAddTap = now;
 
-    addLine({ description: "", qty: 1, rate: 1300 });
     try {
+      addLine({ description: "", qty: 1, rate: 1300 });
       saveLines();
-    } catch (_) {
-      /* private mode / blocked storage */
+    } catch (err) {
+      console.error(err);
+      formError.hidden = false;
+      formError.textContent = "Could not add a service line. Please refresh and try again.";
+      return;
     }
+
     render();
 
     const lastCard = lineItemsEl.querySelector(".line-item:last-child");
-    const last = lastCard && lastCard.querySelector(".line-desc");
     if (lastCard) {
+      lastCard.classList.add("line-item-flash");
       lastCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      const last = lastCard.querySelector(".line-desc");
+      setTimeout(function () {
+        if (last) last.focus();
+      }, 100);
     }
-    setTimeout(() => {
-      if (last) last.focus({ preventScroll: true });
-    }, 50);
   }
 
-  btnAddLine.addEventListener("click", handleAddLine);
-  btnAddLine.addEventListener(
-    "touchend",
-    (event) => {
+  // Expose for reliability + use capture-phase click (avoids overlay swallow)
+  window.__addInvoiceLine = handleAddLine;
+  document.addEventListener(
+    "click",
+    function (event) {
+      const btn = event.target.closest("#btn-add-line");
+      if (!btn) return;
       handleAddLine(event);
     },
-    { passive: false }
+    true
   );
 
   btnApplyRange.addEventListener("click", applyRangeToFirstLine);
+
+  // On phones, keep preview collapsed so it cannot cover the form
+  const previewPanel = $("preview-panel");
+  if (previewPanel && window.matchMedia("(max-width: 1100px)").matches) {
+    previewPanel.open = false;
+  }
 
   form.addEventListener("input", (event) => {
     const id = event.target && event.target.id;

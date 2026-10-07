@@ -51,12 +51,12 @@ summary {
 }
 
 .panel {
-  background: color-mix(in srgb, var(--panel) 92%, white);
+  background: #f7f9fc;
   border-right: 1px solid rgba(30, 58, 95, 0.08);
   padding: 28px 24px 40px;
   overflow: auto;
   position: relative;
-  z-index: 2;
+  z-index: 5;
 }
 
 .panel-header h1 {
@@ -209,12 +209,50 @@ textarea {
   color: var(--navy) !important;
 }
 
+.add-line-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  margin: 0 0 14px;
+  padding: 10px 0 4px;
+  background: linear-gradient(180deg, rgba(247, 249, 252, 0), #f7f9fc 35%);
+}
+
 #btn-add-line {
   width: 100%;
-  margin-bottom: 14px;
-  min-height: 48px;
+  min-height: 52px;
   position: relative;
-  z-index: 3;
+  z-index: 7;
+  border: 2px solid var(--navy);
+  background: #fff;
+  color: var(--navy);
+}
+
+.line-item-flash {
+  outline: 2px solid var(--accent);
+  animation: lineFlash 1.2s ease;
+}
+
+@keyframes lineFlash {
+  from {
+    background: #e8f0fb;
+  }
+  to {
+    background: #fff;
+  }
+}
+
+.preview-panel {
+  border: 0;
+}
+
+.preview-panel > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.preview-panel > summary::-webkit-details-marker {
+  display: none;
 }
 
 .qty-helper {
@@ -695,7 +733,7 @@ textarea.is-invalid {
 
 @media (max-width: 1100px) {
   .app {
-    grid-template-columns: 1fr;
+    display: block;
   }
 
   .panel {
@@ -703,28 +741,64 @@ textarea.is-invalid {
     border-bottom: 1px solid rgba(30, 58, 95, 0.08);
     max-height: none;
     overflow: visible;
+    width: 100%;
   }
 
   .preview-wrap {
     position: relative;
     z-index: 1;
-    /* Scaled preview can paint over the form; don't steal taps */
-    pointer-events: none;
+    width: 100%;
+    padding-top: 8px;
+  }
+
+  .preview-panel > summary.preview-toolbar {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .preview-panel:not([open]) > summary.preview-toolbar::after {
+    content: "Show";
+    margin-left: auto;
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
+
+  .preview-panel[open] > summary.preview-toolbar::after {
+    content: "Hide";
+    margin-left: auto;
+    color: var(--accent);
+    font-size: 0.8rem;
   }
 
   .preview-stage {
-    overflow: hidden;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
     justify-content: flex-start;
     width: 100%;
+    max-width: 100%;
   }
 
-  /* Safari ignores CSS zoom — use transform + clipped height instead */
   .preview-stage .invoice {
-    zoom: normal;
-    transform: scale(0.72);
-    transform-origin: top left;
-    margin-bottom: calc(-1 * (1 - 0.72) * 100%);
-    pointer-events: none;
+    transform: none;
+    zoom: 1;
+    width: 100% !important;
+    max-width: 100%;
+    min-height: 0 !important;
+    padding: 24px 18px 28px;
+  }
+
+  .inv-title {
+    font-size: 1.6rem;
+  }
+
+  .inv-bottom {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .total-block {
+    text-align: left;
   }
 }
 
@@ -734,15 +808,15 @@ textarea.is-invalid {
     grid-template-columns: 1fr;
   }
 
-  .preview-stage .invoice {
-    transform: scale(0.48);
-    margin-bottom: calc(-1 * (1 - 0.48) * 100%);
-  }
-
   #btn-add-line,
   .btn.primary,
   .btn.ghost {
     min-height: 48px;
+  }
+
+  .add-line-bar {
+    position: sticky;
+    bottom: 0;
   }
 }
 

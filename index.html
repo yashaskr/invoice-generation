@@ -7,10 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=3" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="app.js" defer></script>
+  <script src="app.js?v=3" defer></script>
 </head>
 <body>
   <div class="app">
@@ -41,7 +41,17 @@
           <p class="hint">Add one or more line items. Amount for each row is qty × unit rate; the invoice total is their sum.</p>
 
           <div id="line-items" class="line-items"></div>
-          <button type="button" class="btn ghost" id="btn-add-line">+ Add another service</button>
+
+          <div class="add-line-bar">
+            <button
+              type="button"
+              class="btn ghost"
+              id="btn-add-line"
+              onclick="if (window.__addInvoiceLine) { window.__addInvoiceLine(event); } return false;"
+            >
+              + Add another service
+            </button>
+          </div>
 
           <details class="qty-helper">
             <summary>Optional: set first line qty from a date range</summary>
@@ -157,10 +167,11 @@ Mumbai - 400065, Maharashtra</textarea>
     </aside>
 
     <main class="preview-wrap">
-      <div class="preview-toolbar">
-        <span>Live preview</span>
-        <span id="preview-status" class="status warn">Complete the form to enable download</span>
-      </div>
+      <details class="preview-panel" id="preview-panel" open>
+        <summary class="preview-toolbar">
+          <span>Live preview</span>
+          <span id="preview-status" class="status warn">Complete the form to enable download</span>
+        </summary>
 
       <div class="preview-stage">
         <article class="invoice" id="invoice" aria-label="Invoice preview">
@@ -244,6 +255,7 @@ Mumbai - 400065, Maharashtra</textarea>
           </div>
         </article>
       </div>
+      </details>
     </main>
   </div>
 </body>
