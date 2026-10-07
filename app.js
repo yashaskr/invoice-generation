@@ -666,17 +666,51 @@
         !!closing && clone.offsetHeight > pageHeightPx - 12;
 
       if (!needsSecondPage) {
+        const note = clone.querySelector(".inv-continue-note");
+        if (note && note.parentNode) note.parentNode.removeChild(note);
         const canvas = await captureElement(html2canvasFn, clone);
         addCanvasPage(pdf, canvas, pageW, pageH);
       } else {
+        // Professional continuation page — not a bare payment fragment
+        clone.classList.add("invoice-page1");
         const page2 = document.createElement("article");
         page2.className = "invoice invoice-export invoice-page2";
-        page2.innerHTML = '<div class="inv-topbar"></div>';
+        page2.innerHTML =
+          '<div class="inv-topbar"></div>' +
+          '<header class="inv-page2-header">' +
+          '<div>' +
+          "<h2></h2>" +
+          '<p class="muted page2-client"></p>' +
+          "</div>" +
+          '<div class="inv-page2-meta">' +
+          '<p class="page-label">Page 2 of 2 · Continued</p>' +
+          '<p class="inv-number"></p>' +
+          '<p class="inv-date">Date Issued: <strong></strong></p>' +
+          "</div>" +
+          "</header>";
+
+        const h2 = qs("h2", page2);
+        const clientEl = qs(".page2-client", page2);
+        const numEl = qs(".inv-number", page2);
+        const dateEl = qs(".inv-date strong", page2);
+        if (h2) h2.textContent = data.sellerName || "INVOICE";
+        if (clientEl) {
+          clientEl.textContent = data.clientName
+            ? "Billed to: " + data.clientName
+            : "";
+        }
+        if (numEl) numEl.textContent = data.invoiceNumber;
+        if (dateEl) dateEl.textContent = formatLongDate(data.dateIssued);
+
         page2.appendChild(closing);
         host.appendChild(page2);
 
         await waitForImages(page2);
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await new Promise(function (r) {
+          requestAnimationFrame(function () {
+            requestAnimationFrame(r);
+          });
+        });
 
         const canvas1 = await captureElement(html2canvasFn, clone);
         addCanvasPage(pdf, canvas1, pageW, pageH);

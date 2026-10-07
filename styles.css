@@ -470,7 +470,7 @@ textarea.is-invalid {
 }
 
 .pdf-export-host .invoice-page2 .inv-closing {
-  margin-top: 48px;
+  margin-top: 28px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -478,6 +478,58 @@ textarea.is-invalid {
 
 .pdf-export-host .invoice-page2 .inv-footer {
   margin-top: auto;
+}
+
+.inv-continue-note {
+  display: none;
+  margin: 18px 0 0;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.pdf-export-host .invoice-page1 .inv-continue-note {
+  display: block;
+}
+
+.inv-page2-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.inv-page2-header h2 {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  color: var(--navy);
+}
+
+.inv-page2-header .muted {
+  font-size: 0.85rem;
+}
+
+.inv-page2-meta {
+  text-align: right;
+}
+
+.inv-page2-meta .page-label {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.inv-page2-meta .inv-number {
+  margin: 0 0 8px;
 }
 
 /* —— Invoice page (A4-ish) —— */
