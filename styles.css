@@ -450,7 +450,6 @@ textarea.is-invalid {
 .invoice-export,
 .pdf-export-host .invoice {
   transform: none !important;
-  zoom: 1 !important;
   margin: 0 !important;
   box-shadow: 0 18px 50px rgba(22, 48, 79, 0.2) !important;
   width: 794px !important;
@@ -781,7 +780,6 @@ textarea.is-invalid {
 
   .preview-stage .invoice {
     transform: none;
-    zoom: 1;
     width: 100% !important;
     max-width: 100%;
     min-height: 0 !important;
@@ -851,7 +849,6 @@ textarea.is-invalid {
     min-height: auto !important;
     height: auto !important;
     transform: none !important;
-    zoom: 1 !important;
     margin: 0 !important;
   }
 }

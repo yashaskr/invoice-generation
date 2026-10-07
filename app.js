@@ -1,5 +1,77 @@
-(() => {
-  const $ = (id) => document.getElementById(id);
+(function () {
+  "use strict";
+
+  // ---- Cross-browser helpers (Safari / Chrome / Firefox / Edge / Samsung) ----
+  if (!Element.prototype.matches) {
+    Element.prototype.matches =
+      Element.prototype.msMatchesSelector ||
+      Element.prototype.webkitMatchesSelector;
+  }
+  if (!Element.prototype.closest) {
+    Element.prototype.closest = function (sel) {
+      var el = this;
+      while (el && el.nodeType === 1) {
+        if (el.matches(sel)) return el;
+        el = el.parentElement || el.parentNode;
+      }
+      return null;
+    };
+  }
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function qs(sel, root) {
+    return (root || document).querySelector(sel);
+  }
+
+  function qsa(sel, root) {
+    return Array.prototype.slice.call((root || document).querySelectorAll(sel));
+  }
+
+  function storageGet(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function storageSet(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function storageRemove(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function isMobileLayout() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(max-width: 1100px)").matches);
+    } catch (e) {
+      return window.innerWidth <= 1100;
+    }
+  }
+
+  function bindTap(el, handler) {
+    if (!el) return;
+    // Single path for all browsers — avoid touchend+click double-firing
+    el.addEventListener("click", function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      if (event && event.stopPropagation) event.stopPropagation();
+      handler(event);
+    });
+  }
 
   const PROFILE_KEY = "cult-invoice-profile-v1";
   const LINES_KEY = "cult-invoice-lines-v1";
@@ -31,54 +103,65 @@
   const pvLines = $("pv-lines");
 
   let lineSeq = 0;
+  let addLockUntil = 0;
 
   function loadProfile() {
     try {
-      const raw = localStorage.getItem(PROFILE_KEY);
+      const raw = storageGet(PROFILE_KEY);
       if (!raw) return false;
       const data = JSON.parse(raw);
       let filled = false;
-      for (const id of PROFILE_FIELDS) {
+      for (let i = 0; i < PROFILE_FIELDS.length; i++) {
+        const id = PROFILE_FIELDS[i];
         if (typeof data[id] === "string" && data[id].trim()) {
           $(id).value = data[id];
           filled = true;
         }
       }
       return filled;
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
 
   function saveProfile() {
     const data = {};
-    for (const id of PROFILE_FIELDS) {
+    for (let i = 0; i < PROFILE_FIELDS.length; i++) {
+      const id = PROFILE_FIELDS[i];
       data[id] = $(id).value;
     }
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(data));
+    storageSet(PROFILE_KEY, JSON.stringify(data));
   }
 
   function clearProfile() {
-    localStorage.removeItem(PROFILE_KEY);
-    for (const id of PROFILE_FIELDS) {
-      $(id).value = "";
+    storageRemove(PROFILE_KEY);
+    for (let i = 0; i < PROFILE_FIELDS.length; i++) {
+      $(PROFILE_FIELDS[i]).value = "";
     }
     if (sellerDetails) sellerDetails.open = true;
     render();
   }
 
   function saveLines() {
-    localStorage.setItem(LINES_KEY, JSON.stringify(readLinesFromDom()));
+    const payload = readLinesFromDom().map(function (line) {
+      return {
+        description: line.description,
+        qty: line.qty,
+        rate: line.rate,
+        amount: line.amount,
+      };
+    });
+    storageSet(LINES_KEY, JSON.stringify(payload));
   }
 
   function loadLines() {
     try {
-      const raw = localStorage.getItem(LINES_KEY);
+      const raw = storageGet(LINES_KEY);
       if (!raw) return null;
       const data = JSON.parse(raw);
       if (!Array.isArray(data) || !data.length) return null;
       return data;
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -152,35 +235,35 @@
     return cleaned.startsWith("#") ? cleaned : `#${cleaned}`;
   }
 
-  function createLineCard(line = {}) {
-    const id = `line-${++lineSeq}`;
+  function createLineCard(line) {
+    line = line || {};
+    const qtyVal = line.qty != null ? line.qty : 1;
+    const rateVal = line.rate != null ? line.rate : 1300;
+    const id = "line-" + ++lineSeq;
     const card = document.createElement("div");
     card.className = "line-item";
-    card.dataset.lineId = id;
-    card.innerHTML = `
-      <div class="line-item-head">
-        <span class="line-item-title">Service</span>
-        <button type="button" class="btn-text btn-remove-line">Remove</button>
-      </div>
-      <label>
-        Description of services
-        <input type="text" class="line-desc" value="${escapeAttr(line.description || "Cult Live Shoots")}" required />
-      </label>
-      <div class="row row-3">
-        <label>
-          Qty
-          <input type="number" class="line-qty" min="1" step="1" value="${escapeAttr(String(line.qty ?? 1))}" required />
-        </label>
-        <label>
-          Unit rate (INR)
-          <input type="number" class="line-rate" min="0" step="1" value="${escapeAttr(String(line.rate ?? 1300))}" required />
-        </label>
-        <label>
-          Amount
-          <input type="text" class="line-amount" value="—" readonly tabindex="-1" />
-        </label>
-      </div>
-    `;
+    card.setAttribute("data-line-id", id);
+    card.innerHTML =
+      '<div class="line-item-head">' +
+      '<span class="line-item-title">Service</span>' +
+      '<button type="button" class="btn-text btn-remove-line">Remove</button>' +
+      "</div>" +
+      "<label>Description of services" +
+      '<input type="text" class="line-desc" value="' +
+      escapeAttr(line.description || "Cult Live Shoots") +
+      '" required /></label>' +
+      '<div class="row row-3">' +
+      "<label>Qty" +
+      '<input type="number" class="line-qty" min="1" step="1" value="' +
+      escapeAttr(String(qtyVal)) +
+      '" required /></label>' +
+      "<label>Unit rate (INR)" +
+      '<input type="number" class="line-rate" min="0" step="1" value="' +
+      escapeAttr(String(rateVal)) +
+      '" required /></label>' +
+      "<label>Amount" +
+      '<input type="text" class="line-amount" value="—" readonly tabindex="-1" /></label>' +
+      "</div>";
     return card;
   }
 
@@ -192,15 +275,15 @@
   }
 
   function readLinesFromDom() {
-    return Array.from(lineItemsEl.querySelectorAll(".line-item")).map((card) => {
-      const description = card.querySelector(".line-desc").value.trim();
-      const qty = Number(card.querySelector(".line-qty").value);
-      const rate = Number(card.querySelector(".line-rate").value);
+    return qsa(".line-item", lineItemsEl).map(function (card) {
+      const description = qs(".line-desc", card).value.trim();
+      const qty = Number(qs(".line-qty", card).value);
+      const rate = Number(qs(".line-rate", card).value);
       const amount =
         Number.isInteger(qty) && qty > 0 && Number.isFinite(rate) && rate >= 0
           ? qty * rate
           : null;
-      return { description, qty, rate, amount, el: card };
+      return { description: description, qty: qty, rate: rate, amount: amount, el: card };
     });
   }
 
@@ -240,7 +323,9 @@
   }
 
   function clearFieldErrors() {
-    form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+    qsa(".is-invalid", form).forEach(function (el) {
+      el.className = el.className.replace(/\bis-invalid\b/g, "").replace(/\s+/g, " ").trim();
+    });
   }
 
   function markInvalid(elOrId) {
@@ -481,13 +566,17 @@
   }
 
   function waitForImages(root) {
-    const images = Array.from(root.querySelectorAll("img"));
+    const images = qsa("img", root);
     return Promise.all(
-      images.map((img) => {
+      images.map(function (img) {
         if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-        return new Promise((resolve) => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
+        return new Promise(function (resolve) {
+          img.onload = function () {
+            resolve();
+          };
+          img.onerror = function () {
+            resolve();
+          };
         });
       })
     );
@@ -603,7 +692,7 @@
       formError.hidden = false;
       formError.textContent = "Could not create PDF. Please try again.";
     } finally {
-      host.remove();
+      if (host && host.parentNode) host.parentNode.removeChild(host);
       btnDownload.textContent = "Download PDF";
       render();
     }
@@ -625,97 +714,102 @@
     render();
   }
 
-  lineItemsEl.addEventListener("click", (event) => {
-    const removeBtn = event.target.closest(".btn-remove-line");
+  function handleRemoveLine(event) {
+    const target = event.target || event.srcElement;
+    if (!target || !target.closest) return;
+    const removeBtn = target.closest(".btn-remove-line");
     if (!removeBtn) return;
-    event.preventDefault();
+    if (event.preventDefault) event.preventDefault();
     const card = removeBtn.closest(".line-item");
     if (!card) return;
-    if (lineItemsEl.querySelectorAll(".line-item").length <= 1) return;
-    card.remove();
+    if (qsa(".line-item", lineItemsEl).length <= 1) return;
+    if (card.parentNode) card.parentNode.removeChild(card);
     renumberLines();
-    try {
-      saveLines();
-    } catch (_) {
-      /* ignore */
-    }
+    saveLines();
     render();
-  });
+  }
 
   function handleAddLine(event) {
-    if (event && typeof event.preventDefault === "function") {
-      event.preventDefault();
-    }
+    if (event && event.preventDefault) event.preventDefault();
+
+    const now = Date.now();
+    if (now < addLockUntil) return;
+    addLockUntil = now + 350;
 
     try {
       addLine({ description: "", qty: 1, rate: 1300 });
       saveLines();
+      render();
     } catch (err) {
-      console.error(err);
+      if (window.console && console.error) console.error(err);
       formError.hidden = false;
       formError.textContent = "Could not add a service line. Please refresh and try again.";
       return;
     }
 
-    render();
-
-    const lastCard = lineItemsEl.querySelector(".line-item:last-child");
+    const cards = qsa(".line-item", lineItemsEl);
+    const lastCard = cards[cards.length - 1];
     if (lastCard) {
-      lastCard.classList.add("line-item-flash");
-      lastCard.scrollIntoView({ behavior: "smooth", block: "center" });
-      const last = lastCard.querySelector(".line-desc");
+      lastCard.className += " line-item-flash";
+      if (lastCard.scrollIntoView) {
+        try {
+          lastCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch (e) {
+          lastCard.scrollIntoView(true);
+        }
+      }
+      const last = qs(".line-desc", lastCard);
       setTimeout(function () {
-        if (last) last.focus();
-      }, 100);
+        if (last && last.focus) last.focus();
+      }, 120);
     }
   }
 
-  // Expose for reliability + use capture-phase click (avoids overlay swallow)
+  // One global entry point used by button binding (all browsers)
   window.__addInvoiceLine = handleAddLine;
-  document.addEventListener(
-    "click",
-    function (event) {
-      const btn = event.target.closest("#btn-add-line");
-      if (!btn) return;
-      handleAddLine(event);
-    },
-    true
-  );
 
-  btnApplyRange.addEventListener("click", applyRangeToFirstLine);
+  bindTap(btnAddLine, handleAddLine);
+  bindTap(btnApplyRange, applyRangeToFirstLine);
+  bindTap(btnDownload, downloadPdf);
+  bindTap(btnClearProfile, clearProfile);
+  if (lineItemsEl) {
+    lineItemsEl.addEventListener("click", handleRemoveLine);
+  }
 
-  // On phones, keep preview collapsed so it cannot cover the form
+  // On phones/tablets, keep preview collapsed so it cannot cover controls
   const previewPanel = $("preview-panel");
-  if (previewPanel && window.matchMedia("(max-width: 1100px)").matches) {
+  if (previewPanel && isMobileLayout()) {
     previewPanel.open = false;
   }
 
-  form.addEventListener("input", (event) => {
-    const id = event.target && event.target.id;
-    if (id === "sellerPan" || id === "ifsc" || id === "acctNumber" || id === "upi") {
+  if (form) {
+    form.addEventListener("input", function (event) {
+      const target = event.target || event.srcElement;
+      const id = target && target.id;
+      if (id === "sellerPan" || id === "ifsc" || id === "acctNumber" || id === "upi") {
+        normalizePaymentFields();
+      }
+      if (target && target.closest && target.closest(".line-item")) {
+        updateLineAmounts();
+        saveLines();
+      }
+      saveProfile();
+      render();
+    });
+
+    form.addEventListener("change", function () {
       normalizePaymentFields();
-    }
-    if (event.target.closest(".line-item")) {
-      updateLineAmounts();
+      saveProfile();
       saveLines();
-    }
-    saveProfile();
-    render();
-  });
-
-  form.addEventListener("change", () => {
-    normalizePaymentFields();
-    saveProfile();
-    saveLines();
-    render();
-  });
-
-  btnDownload.addEventListener("click", downloadPdf);
-  btnClearProfile.addEventListener("click", clearProfile);
+      render();
+    });
+  }
 
   const savedLines = loadLines();
   if (savedLines) {
-    savedLines.forEach((line) => addLine(line));
+    for (let i = 0; i < savedLines.length; i++) {
+      addLine(savedLines[i]);
+    }
   } else {
     addLine({ description: "Cult Live Shoots", qty: 12, rate: 1300 });
   }
