@@ -250,8 +250,8 @@
       "</div>" +
       "<label>Description of services" +
       '<input type="text" class="line-desc" value="' +
-      escapeAttr(line.description || "Cult Live Shoots") +
-      '" required /></label>' +
+      escapeAttr(line.description || "") +
+      '" placeholder="e.g. Live shoots, consulting, editing" required /></label>' +
       '<div class="row row-3">' +
       "<label>Qty" +
       '<input type="number" class="line-qty" min="1" step="1" value="' +
@@ -631,7 +631,7 @@
 
     const data = collect(lines, total);
     const num = String(data.invoiceNumber).replace("#", "");
-    const filename = `Cult Shoots invoice - ${num}.pdf`;
+    const filename = "Invoice-" + num + ".pdf";
 
     btnDownload.disabled = true;
     btnDownload.textContent = "Preparing PDF…";
@@ -811,7 +811,7 @@
       addLine(savedLines[i]);
     }
   } else {
-    addLine({ description: "Cult Live Shoots", qty: 12, rate: 1300 });
+    addLine({ description: "", qty: 1, rate: 0 });
   }
 
   const hadProfile = loadProfile();

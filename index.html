@@ -4,23 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <link rel="canonical" href="https://yashaskr.github.io/invoice-generation/" />
-  <title>Invoice Generator — Cult Live Shoots</title>
+  <title>Invoice Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
   <meta http-equiv="Cache-Control" content="no-cache" />
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="app.js?v=4" defer></script>
+  <script src="app.js?v=5" defer></script>
 </head>
 <body>
   <div class="app">
     <aside class="panel">
       <header class="panel-header">
-        <p class="eyebrow">Cult Live Shoots</p>
+        <p class="eyebrow">Invoicing</p>
         <h1>Invoice generator</h1>
-        <p class="lede">Fill the details, preview the invoice, then download a PDF. Works offline after first load — free to host on GitHub Pages.</p>
+        <p class="lede">Enter your details and services, preview the invoice, then download a PDF. Works for any client or service — free to host on GitHub Pages.</p>
       </header>
 
       <form id="invoice-form" novalidate>
@@ -83,13 +83,11 @@
             <summary>Billed to</summary>
             <label>
               Client name
-              <input type="text" id="clientName" name="clientName" value="Keemaya Productions Private Limited" required />
+              <input type="text" id="clientName" name="clientName" placeholder="Client or company name" required autocomplete="organization" />
             </label>
             <label>
               Client address
-              <textarea id="clientAddress" name="clientAddress" rows="3" required>B/414, Orchard Road Mall, Royal Palm,
-Aarey Milk Colony, Goregaon East,
-Mumbai - 400065, Maharashtra</textarea>
+              <textarea id="clientAddress" name="clientAddress" rows="3" placeholder="Client billing address" required></textarea>
             </label>
           </details>
         </section>
@@ -209,7 +207,7 @@ Mumbai - 400065, Maharashtra</textarea>
             </thead>
             <tbody id="pv-lines">
               <tr>
-                <td>Cult Live Shoots</td>
+                <td>—</td>
                 <td>—</td>
                 <td>—</td>
                 <td>—</td>
