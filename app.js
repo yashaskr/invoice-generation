@@ -397,6 +397,38 @@
     );
   }
 
+  async function captureElement(html2canvasFn, el) {
+    return html2canvasFn(el, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: el.offsetWidth,
+      windowHeight: el.offsetHeight,
+    });
+  }
+
+  function addCanvasPage(pdf, canvas, pageW, pageH) {
+    // Fit within one A4 page; never overflow onto an accidental extra page
+    const scale = Math.min(pageW / canvas.width, pageH / canvas.height);
+    const imgW = canvas.width * scale;
+    const imgH = canvas.height * scale;
+    const x = (pageW - imgW) / 2;
+    pdf.addImage(
+      canvas.toDataURL("image/jpeg", 0.98),
+      "JPEG",
+      x,
+      0,
+      imgW,
+      imgH,
+      undefined,
+      "FAST"
+    );
+  }
+
   async function downloadPdf() {
     const { ok, errors, qty, rate } = validate();
     if (!ok) {
@@ -420,8 +452,6 @@
     btnDownload.disabled = true;
     btnDownload.textContent = "Preparing PDF…";
 
-    // Capture a full-size clone at viewport origin (avoids CSS zoom / scroll crop,
-    // and avoids Chrome print headers that stamp the site URL).
     const host = document.createElement("div");
     host.className = "pdf-export-host";
     const clone = $("invoice").cloneNode(true);
@@ -437,18 +467,6 @@
       await waitForImages(clone);
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      const canvas = await html2canvasFn(clone, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: clone.offsetWidth,
-        windowHeight: clone.offsetHeight,
-      });
-
       const pdf = new jsPdfCtor({
         orientation: "portrait",
         unit: "mm",
@@ -458,23 +476,35 @@
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
 
-      // Force a single A4 page — never call addPage()
-      const fit = Math.min(pageW / canvas.width, pageH / canvas.height);
-      const imgW = canvas.width * fit;
-      const imgH = canvas.height * fit;
-      const x = (pageW - imgW) / 2;
-      const y = 0;
+      // A4 height in px at this invoice width (210×297mm)
+      const pageHeightPx = clone.offsetWidth * (297 / 210);
+      const closing = clone.querySelector(".inv-closing");
+      const needsSecondPage =
+        !!closing && clone.offsetHeight > pageHeightPx - 12;
 
-      pdf.addImage(
-        canvas.toDataURL("image/jpeg", 0.98),
-        "JPEG",
-        x,
-        y,
-        imgW,
-        imgH,
-        undefined,
-        "FAST"
-      );
+      if (!needsSecondPage) {
+        const canvas = await captureElement(html2canvasFn, clone);
+        addCanvasPage(pdf, canvas, pageW, pageH);
+      } else {
+        // Page 1: header + billed to + table
+        // Page 2: payment + total + signature + thank-you (kept together)
+        const page2 = document.createElement("article");
+        page2.className = "invoice invoice-export invoice-page2";
+        page2.innerHTML = '<div class="inv-topbar"></div>';
+        page2.appendChild(closing);
+        host.appendChild(page2);
+
+        await waitForImages(page2);
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        const canvas1 = await captureElement(html2canvasFn, clone);
+        addCanvasPage(pdf, canvas1, pageW, pageH);
+
+        pdf.addPage();
+        const canvas2 = await captureElement(html2canvasFn, page2);
+        addCanvasPage(pdf, canvas2, pageW, pageH);
+      }
+
       pdf.save(filename);
     } catch (err) {
       console.error(err);

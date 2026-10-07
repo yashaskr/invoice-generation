@@ -223,36 +223,39 @@ Mumbai - 400065, Maharashtra</textarea>
             </tbody>
           </table>
 
-          <section class="inv-bottom">
-            <div class="pay-box">
-              <p class="pay-title">PAYMENT INSTRUCTIONS</p>
-              <dl>
-                <div><dt>Bank</dt><dd id="pv-bank"></dd></div>
-                <div><dt>Acct Name</dt><dd id="pv-acct-name"></dd></div>
-                <div><dt>Account</dt><dd id="pv-acct-number"></dd></div>
-                <div><dt>IFSC</dt><dd id="pv-ifsc"></dd></div>
-              </dl>
-              <hr />
-              <p class="upi"><strong>UPI:</strong> <span id="pv-upi"></span></p>
-            </div>
-            <div class="total-block">
-              <p class="label">TOTAL AMOUNT DUE</p>
-              <p class="total" id="pv-total">INR 0</p>
-              <div class="signature">
-                <img src="assets/signature.png" alt="Signature" id="pv-signature" />
-                <p class="sign-name" id="pv-sign-name"></p>
+          <!-- Kept as one block so PDF can move it entirely to page 2 -->
+          <div class="inv-closing">
+            <section class="inv-bottom">
+              <div class="pay-box">
+                <p class="pay-title">PAYMENT INSTRUCTIONS</p>
+                <dl>
+                  <div><dt>Bank</dt><dd id="pv-bank"></dd></div>
+                  <div><dt>Acct Name</dt><dd id="pv-acct-name"></dd></div>
+                  <div><dt>Account</dt><dd id="pv-acct-number"></dd></div>
+                  <div><dt>IFSC</dt><dd id="pv-ifsc"></dd></div>
+                </dl>
+                <hr />
+                <p class="upi"><strong>UPI:</strong> <span id="pv-upi"></span></p>
               </div>
-            </div>
-          </section>
+              <div class="total-block">
+                <p class="label">TOTAL AMOUNT DUE</p>
+                <p class="total" id="pv-total">INR 0</p>
+                <div class="signature">
+                  <img src="assets/signature.png" alt="Signature" id="pv-signature" />
+                  <p class="sign-name" id="pv-sign-name"></p>
+                </div>
+              </div>
+            </section>
 
-          <footer class="inv-footer">
-            <p class="thanks">Thank you for your business!</p>
-            <p class="muted small">
-              If you have any inquiries, please reply to
-              <span id="pv-footer-email"></span>, or WhatsApp on
-              <span id="pv-footer-phone"></span>.
-            </p>
-          </footer>
+            <footer class="inv-footer">
+              <p class="thanks">Thank you for your business!</p>
+              <p class="muted small">
+                If you have any inquiries, please reply to
+                <span id="pv-footer-email"></span>, or WhatsApp on
+                <span id="pv-footer-phone"></span>.
+              </p>
+            </footer>
+          </div>
         </article>
       </div>
     </main>

@@ -364,6 +364,28 @@ textarea.is-invalid {
   max-width: 794px !important;
 }
 
+.inv-closing {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-export-host .invoice-page2 {
+  min-height: 1123px !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-export-host .invoice-page2 .inv-closing {
+  margin-top: 48px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-export-host .invoice-page2 .inv-footer {
+  margin-top: auto;
+}
+
 /* —— Invoice page (A4-ish) —— */
 .invoice {
   width: 794px;
