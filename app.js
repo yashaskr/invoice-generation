@@ -628,22 +628,56 @@
   lineItemsEl.addEventListener("click", (event) => {
     const removeBtn = event.target.closest(".btn-remove-line");
     if (!removeBtn) return;
+    event.preventDefault();
     const card = removeBtn.closest(".line-item");
     if (!card) return;
     if (lineItemsEl.querySelectorAll(".line-item").length <= 1) return;
     card.remove();
     renumberLines();
-    saveLines();
+    try {
+      saveLines();
+    } catch (_) {
+      /* ignore */
+    }
     render();
   });
 
-  btnAddLine.addEventListener("click", () => {
+  let lastAddTap = 0;
+  function handleAddLine(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const now = Date.now();
+    if (now - lastAddTap < 400) return; // ignore click+touchend double fire
+    lastAddTap = now;
+
     addLine({ description: "", qty: 1, rate: 1300 });
-    saveLines();
+    try {
+      saveLines();
+    } catch (_) {
+      /* private mode / blocked storage */
+    }
     render();
-    const last = lineItemsEl.querySelector(".line-item:last-child .line-desc");
-    if (last) last.focus();
-  });
+
+    const lastCard = lineItemsEl.querySelector(".line-item:last-child");
+    const last = lastCard && lastCard.querySelector(".line-desc");
+    if (lastCard) {
+      lastCard.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    setTimeout(() => {
+      if (last) last.focus({ preventScroll: true });
+    }, 50);
+  }
+
+  btnAddLine.addEventListener("click", handleAddLine);
+  btnAddLine.addEventListener(
+    "touchend",
+    (event) => {
+      handleAddLine(event);
+    },
+    { passive: false }
+  );
 
   btnApplyRange.addEventListener("click", applyRangeToFirstLine);
 

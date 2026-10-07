@@ -55,6 +55,8 @@ summary {
   border-right: 1px solid rgba(30, 58, 95, 0.08);
   padding: 28px 24px 40px;
   overflow: auto;
+  position: relative;
+  z-index: 2;
 }
 
 .panel-header h1 {
@@ -210,6 +212,9 @@ textarea {
 #btn-add-line {
   width: 100%;
   margin-bottom: 14px;
+  min-height: 48px;
+  position: relative;
+  z-index: 3;
 }
 
 .qty-helper {
@@ -278,6 +283,8 @@ textarea {
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.12s, opacity 0.12s, background 0.12s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(30, 58, 95, 0.12);
 }
 
 .btn:active {
@@ -695,17 +702,29 @@ textarea.is-invalid {
     border-right: 0;
     border-bottom: 1px solid rgba(30, 58, 95, 0.08);
     max-height: none;
+    overflow: visible;
+  }
+
+  .preview-wrap {
+    position: relative;
+    z-index: 1;
+    /* Scaled preview can paint over the form; don't steal taps */
+    pointer-events: none;
   }
 
   .preview-stage {
-    overflow-x: auto;
+    overflow: hidden;
     justify-content: flex-start;
+    width: 100%;
   }
 
-  /* Scale the stage, not the invoice node — keeps PDF capture accurate */
+  /* Safari ignores CSS zoom — use transform + clipped height instead */
   .preview-stage .invoice {
+    zoom: normal;
+    transform: scale(0.72);
     transform-origin: top left;
-    zoom: 0.72;
+    margin-bottom: calc(-1 * (1 - 0.72) * 100%);
+    pointer-events: none;
   }
 }
 
@@ -716,7 +735,14 @@ textarea.is-invalid {
   }
 
   .preview-stage .invoice {
-    zoom: 0.48;
+    transform: scale(0.48);
+    margin-bottom: calc(-1 * (1 - 0.48) * 100%);
+  }
+
+  #btn-add-line,
+  .btn.primary,
+  .btn.ghost {
+    min-height: 48px;
   }
 }
 
