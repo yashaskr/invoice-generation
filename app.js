@@ -144,8 +144,54 @@
     return inclusiveDays($("dateFrom").value, $("dateTo").value);
   }
 
+  function normalizePaymentFields() {
+    const pan = $("sellerPan");
+    const ifsc = $("ifsc");
+    const acct = $("acctNumber");
+    const upi = $("upi");
+    if (pan) pan.value = pan.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+    if (ifsc) ifsc.value = ifsc.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11);
+    if (acct) acct.value = acct.value.replace(/\s+/g, "").replace(/\D/g, "").slice(0, 18);
+    if (upi) upi.value = upi.value.trim().toLowerCase();
+  }
+
+  function clearFieldErrors() {
+    form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+  }
+
+  function markInvalid(id) {
+    const el = $(id);
+    if (el) el.classList.add("is-invalid");
+  }
+
+  function isValidBankName(value) {
+    return /^[A-Za-z0-9][A-Za-z0-9 .,&'/-]{1,70}$/.test(value);
+  }
+
+  function isValidAccountNumber(value) {
+    return /^\d{9,18}$/.test(value);
+  }
+
+  function isValidIfsc(value) {
+    return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(value);
+  }
+
+  function isValidUpi(value) {
+    return /^[a-z0-9](?:[a-z0-9.\-_]{1,255})@[a-z][a-z0-9.\-]{1,63}$/.test(value);
+  }
+
+  function isValidPan(value) {
+    return /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value);
+  }
+
+  function isValidAcctName(value) {
+    return /^[A-Za-z][A-Za-z .'-]{1,70}$/.test(value);
+  }
+
   function validate() {
     const errors = [];
+    clearFieldErrors();
+
     const requiredIds = [
       "invoiceNumber",
       "dateIssued",
@@ -158,6 +204,7 @@
 
     for (const id of requiredIds) {
       if (!String($(id).value || "").trim()) {
+        markInvalid(id);
         if (PROFILE_FIELDS.includes(id)) {
           errors.push("Fill your details (name, PAN, bank, UPI) before downloading.");
           if (sellerDetails) sellerDetails.open = true;
@@ -170,26 +217,87 @@
 
     const rate = Number($("unitRate").value);
     if (!Number.isFinite(rate) || rate < 0) {
+      markInvalid("unitRate");
       errors.push("Cost per session must be a valid number.");
     }
 
     const qty = getQuantity();
     if (qtyMode === "range") {
       if (!$("dateFrom").value || !$("dateTo").value) {
+        markInvalid("dateFrom");
+        markInvalid("dateTo");
         errors.push("Choose both From and To dates.");
       } else if (qty === null) {
+        markInvalid("dateTo");
         errors.push("To date must be on or after From date.");
       }
     } else if (qty === null) {
+      markInvalid("qtyManual");
       errors.push("Enter a whole number of sessions / days greater than 0.");
+    }
+
+    // Payment / identity format checks once the user has entered enough text
+    const pan = $("sellerPan").value.trim().toUpperCase();
+    const bankName = $("bankName").value.trim();
+    const acctName = $("acctName").value.trim();
+    const acctNumber = $("acctNumber").value.replace(/\s+/g, "");
+    const ifsc = $("ifsc").value.trim().toUpperCase();
+    const upi = $("upi").value.trim().toLowerCase();
+
+    if (pan.length >= 10 && !isValidPan(pan)) {
+      markInvalid("sellerPan");
+      errors.push("PAN must look like ABCDE1234F (5 letters, 4 digits, 1 letter).");
+      if (sellerDetails) sellerDetails.open = true;
+    } else if (pan && pan.length < 10) {
+      markInvalid("sellerPan");
+      errors.push("PAN must be exactly 10 characters (ABCDE1234F).");
+      if (sellerDetails) sellerDetails.open = true;
+    }
+
+    if (bankName.length >= 2 && !isValidBankName(bankName)) {
+      markInvalid("bankName");
+      errors.push("Enter a valid bank name (e.g. HDFC Bank).");
+      if (sellerDetails) sellerDetails.open = true;
+    }
+
+    if (acctName.length >= 2 && !isValidAcctName(acctName)) {
+      markInvalid("acctName");
+      errors.push("Account name should use letters only (and spaces / . ' -).");
+      if (sellerDetails) sellerDetails.open = true;
+    }
+
+    if (acctNumber && !isValidAccountNumber(acctNumber)) {
+      markInvalid("acctNumber");
+      errors.push("Account number must be 9–18 digits (no spaces or letters).");
+      if (sellerDetails) sellerDetails.open = true;
+    }
+
+    if (ifsc.length >= 11 && !isValidIfsc(ifsc)) {
+      markInvalid("ifsc");
+      errors.push("IFSC must be 11 characters like HDFC0000053 (4 letters, 0, then 6 alphanumeric).");
+      if (sellerDetails) sellerDetails.open = true;
+    } else if (ifsc && ifsc.length < 11) {
+      markInvalid("ifsc");
+      errors.push("IFSC must be exactly 11 characters (e.g. HDFC0000053).");
+      if (sellerDetails) sellerDetails.open = true;
+    }
+
+    if (upi.includes("@") && !isValidUpi(upi)) {
+      markInvalid("upi");
+      errors.push("UPI must look like name@okaxis (username@handle).");
+      if (sellerDetails) sellerDetails.open = true;
+    } else if (upi && !upi.includes("@")) {
+      markInvalid("upi");
+      errors.push("UPI must include @ (e.g. name@okaxis).");
+      if (sellerDetails) sellerDetails.open = true;
     }
 
     return { ok: errors.length === 0, errors, qty, rate };
   }
 
-  function collect() {
-    const { qty, rate } = validate();
-    const amount = qty != null && rate != null ? qty * rate : 0;
+  function collect(qty, rate) {
+    const amount =
+      qty != null && rate != null && Number.isFinite(rate) ? qty * rate : 0;
     return {
       invoiceNumber: invoiceNumberDisplay($("invoiceNumber").value),
       dateIssued: $("dateIssued").value,
@@ -203,18 +311,18 @@
       sellerAddress: $("sellerAddress").value.trim(),
       sellerEmail: $("sellerEmail").value.trim(),
       sellerPhone: $("sellerPhone").value.trim(),
-      sellerPan: $("sellerPan").value.trim(),
+      sellerPan: $("sellerPan").value.trim().toUpperCase(),
       bankName: $("bankName").value.trim(),
       acctName: $("acctName").value.trim(),
-      acctNumber: $("acctNumber").value.trim(),
-      ifsc: $("ifsc").value.trim(),
-      upi: $("upi").value.trim(),
+      acctNumber: $("acctNumber").value.replace(/\s+/g, ""),
+      ifsc: $("ifsc").value.trim().toUpperCase(),
+      upi: $("upi").value.trim().toLowerCase(),
     };
   }
 
   function render() {
     const { ok, errors, qty, rate } = validate();
-    const data = collect();
+    const data = collect(qty, rate);
 
     calcQty.textContent = qty != null ? String(qty) : "—";
     calcAmount.textContent =
@@ -276,142 +384,104 @@
     render();
   }
 
-  function buildPrintDocument(filename, styleCss, invoiceHtml) {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>${filename}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
-  <style>
-${styleCss}
-    html, body {
-      margin: 0 !important;
-      padding: 0 !important;
-      background: #ffffff !important;
-    }
-    body {
-      display: flex;
-      justify-content: center;
-    }
-    .invoice {
-      box-shadow: none !important;
-      zoom: 1 !important;
-      transform: none !important;
-      margin: 0 !important;
-      width: 210mm !important;
-      min-height: 297mm !important;
-    }
-    @page {
-      size: A4;
-      margin: 0;
-    }
-    @media print {
-      html, body {
-        width: 210mm;
-        background: #ffffff !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-      .invoice {
-        width: 210mm !important;
-        min-height: 297mm !important;
-      }
-    }
-  </style>
-</head>
-<body>
-  ${invoiceHtml}
-</body>
-</html>`;
-  }
-
-  async function waitForPrintReady(doc) {
-    if (doc.fonts && doc.fonts.ready) {
-      try {
-        await doc.fonts.ready;
-      } catch (_) {
-        /* ignore */
-      }
-    }
-    const images = Array.from(doc.images || []);
-    await Promise.all(
+  function waitForImages(root) {
+    const images = Array.from(root.querySelectorAll("img"));
+    return Promise.all(
       images.map((img) => {
-        if (img.complete) return Promise.resolve();
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
         return new Promise((resolve) => {
-          img.onload = img.onerror = resolve;
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
         });
       })
     );
-    await new Promise((r) => setTimeout(r, 250));
   }
 
   async function downloadPdf() {
-    const { ok, errors } = validate();
+    const { ok, errors, qty, rate } = validate();
     if (!ok) {
       formError.hidden = false;
       formError.textContent = errors[0];
       return;
     }
 
-    const data = collect();
+    const html2canvasFn = window.html2canvas;
+    const jsPdfCtor = window.jspdf && window.jspdf.jsPDF;
+    if (!html2canvasFn || !jsPdfCtor) {
+      formError.hidden = false;
+      formError.textContent = "PDF library still loading. Try again in a moment.";
+      return;
+    }
+
+    const data = collect(qty, rate);
     const num = String(data.invoiceNumber).replace("#", "");
-    const filename = `Cult Shoots invoice - ${num}`;
+    const filename = `Cult Shoots invoice - ${num}.pdf`;
 
     btnDownload.disabled = true;
-    btnDownload.textContent = "Opening…";
+    btnDownload.textContent = "Preparing PDF…";
 
-    let iframe = null;
+    // Capture a full-size clone at viewport origin (avoids CSS zoom / scroll crop,
+    // and avoids Chrome print headers that stamp the site URL).
+    const host = document.createElement("div");
+    host.className = "pdf-export-host";
+    const clone = $("invoice").cloneNode(true);
+    clone.id = "invoice-export";
+    clone.classList.add("invoice-export");
+    host.appendChild(clone);
+    document.body.appendChild(host);
 
     try {
-      // Inline CSS + sandboxed iframe so Chrome extensions can't inject
-      // widgets into the printed document.
-      const styleCss = await fetch(new URL("styles.css", window.location.href)).then((r) =>
-        r.text()
-      );
-      const invoiceHtml = $("invoice").outerHTML.replace(
-        /src="(assets\/[^"]+)"/g,
-        (_, path) => `src="${new URL(path, window.location.href).href}"`
-      );
-      const html = buildPrintDocument(filename, styleCss, invoiceHtml);
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      await waitForImages(clone);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      iframe = document.createElement("iframe");
-      iframe.setAttribute(
-        "sandbox",
-        "allow-modals allow-same-origin allow-scripts"
-      );
-      iframe.setAttribute("title", "Invoice print");
-      iframe.style.cssText =
-        "position:fixed;width:210mm;height:297mm;left:-10000px;top:0;border:0;opacity:0;pointer-events:none;";
-      document.body.appendChild(iframe);
-
-      const loaded = new Promise((resolve, reject) => {
-        iframe.onload = () => resolve();
-        iframe.onerror = () => reject(new Error("Print frame failed to load"));
-        setTimeout(() => resolve(), 1500);
+      const canvas = await html2canvasFn(clone, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: clone.offsetWidth,
+        windowHeight: clone.offsetHeight,
       });
-      iframe.srcdoc = html;
-      await loaded;
-      await waitForPrintReady(iframe.contentDocument);
 
-      const frameWindow = iframe.contentWindow;
-      const cleanup = () => {
-        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        iframe = null;
-      };
-      frameWindow.addEventListener("afterprint", cleanup, { once: true });
-      setTimeout(cleanup, 60_000);
+      const pdf = new jsPdfCtor({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
 
-      frameWindow.focus();
-      frameWindow.print();
+      // Force a single A4 page — never call addPage()
+      const fit = Math.min(pageW / canvas.width, pageH / canvas.height);
+      const imgW = canvas.width * fit;
+      const imgH = canvas.height * fit;
+      const x = (pageW - imgW) / 2;
+      const y = 0;
+
+      pdf.addImage(
+        canvas.toDataURL("image/jpeg", 0.98),
+        "JPEG",
+        x,
+        y,
+        imgW,
+        imgH,
+        undefined,
+        "FAST"
+      );
+      pdf.save(filename);
     } catch (err) {
       console.error(err);
-      if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
       formError.hidden = false;
-      formError.textContent = "Could not prepare the PDF. Please try again.";
+      formError.textContent = "Could not create PDF. Please try again.";
     } finally {
+      host.remove();
       btnDownload.textContent = "Download PDF";
       render();
     }
@@ -421,11 +491,16 @@ ${styleCss}
     btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
 
-  form.addEventListener("input", () => {
+  form.addEventListener("input", (event) => {
+    const id = event.target && event.target.id;
+    if (id === "sellerPan" || id === "ifsc" || id === "acctNumber" || id === "upi") {
+      normalizePaymentFields();
+    }
     saveProfile();
     render();
   });
   form.addEventListener("change", () => {
+    normalizePaymentFields();
     saveProfile();
     render();
   });

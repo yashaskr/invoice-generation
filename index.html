@@ -3,11 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Invoice Generator — Sheetal Srinath</title>
+  <title>Invoice Generator — Cult Live Shoots</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -125,12 +127,14 @@ Mumbai - 400065, Maharashtra</textarea>
             </div>
             <label>
               PAN
-              <input type="text" id="sellerPan" name="sellerPan" placeholder="PAN" required autocomplete="off" />
+              <input type="text" id="sellerPan" name="sellerPan" placeholder="ABCDE1234F" maxlength="10" required autocomplete="off" spellcheck="false" />
+              <span class="field-hint">10 characters: 5 letters, 4 digits, 1 letter</span>
             </label>
             <div class="row">
               <label>
                 Bank
-                <input type="text" id="bankName" name="bankName" placeholder="Bank name" required autocomplete="off" />
+                <input type="text" id="bankName" name="bankName" placeholder="e.g. HDFC Bank" required autocomplete="off" />
+                <span class="field-hint">Letters, numbers, spaces, and . , &amp; - '</span>
               </label>
               <label>
                 Account name
@@ -140,16 +144,19 @@ Mumbai - 400065, Maharashtra</textarea>
             <div class="row">
               <label>
                 Account number
-                <input type="text" id="acctNumber" name="acctNumber" placeholder="Account number" required autocomplete="off" />
+                <input type="text" id="acctNumber" name="acctNumber" placeholder="9–18 digits" inputmode="numeric" required autocomplete="off" spellcheck="false" />
+                <span class="field-hint">Digits only, 9–18 characters</span>
               </label>
               <label>
                 IFSC
-                <input type="text" id="ifsc" name="ifsc" placeholder="IFSC" required autocomplete="off" />
+                <input type="text" id="ifsc" name="ifsc" placeholder="HDFC0000053" maxlength="11" required autocomplete="off" spellcheck="false" />
+                <span class="field-hint">11 chars, e.g. HDFC0000053</span>
               </label>
             </div>
             <label>
               UPI
-              <input type="text" id="upi" name="upi" placeholder="name@upi" required autocomplete="off" />
+              <input type="text" id="upi" name="upi" placeholder="name@okaxis" required autocomplete="off" spellcheck="false" />
+              <span class="field-hint">Format: username@bank (e.g. name@okaxis)</span>
             </label>
             <button type="button" class="btn ghost" id="btn-clear-profile">Clear saved details from this browser</button>
           </details>
@@ -158,7 +165,7 @@ Mumbai - 400065, Maharashtra</textarea>
         <div class="actions">
           <button type="button" class="btn primary" id="btn-download" disabled>Download PDF</button>
         </div>
-        <p class="hint action-hint">Opens the print dialog — choose <strong>Save as PDF</strong> as the destination.</p>
+        <p class="hint action-hint">Downloads a single-page PDF with no site URL watermark.</p>
         <p class="form-error" id="form-error" hidden></p>
       </form>
     </aside>
