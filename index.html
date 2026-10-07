@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invoice Generator — Sheetal Srinath</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <header class="panel-header">
+        <p class="eyebrow">Cult Live Shoots</p>
+        <h1>Invoice generator</h1>
+        <p class="lede">Fill the details, preview the invoice, then download a PDF. Works offline after first load — free to host on GitHub Pages.</p>
+      </header>
+
+      <form id="invoice-form" novalidate>
+        <section class="field-group">
+          <h2>Invoice</h2>
+          <div class="row">
+            <label>
+              Invoice number
+              <input type="text" id="invoiceNumber" name="invoiceNumber" value="003" required />
+            </label>
+            <label>
+              Date issued
+              <input type="date" id="dateIssued" name="dateIssued" required />
+            </label>
+          </div>
+          <label>
+            Description of services
+            <input type="text" id="description" name="description" value="Cult Live Shoots" required />
+          </label>
+        </section>
+
+        <section class="field-group">
+          <h2>Sessions</h2>
+          <div class="segmented" role="tablist" aria-label="Quantity mode">
+            <button type="button" class="segment active" data-mode="range" aria-pressed="true">Date range</button>
+            <button type="button" class="segment" data-mode="manual" aria-pressed="false">Number of days</button>
+          </div>
+
+          <div id="range-fields" class="mode-fields">
+            <div class="row">
+              <label>
+                From
+                <input type="date" id="dateFrom" name="dateFrom" />
+              </label>
+              <label>
+                To
+                <input type="date" id="dateTo" name="dateTo" />
+              </label>
+            </div>
+            <p class="hint" id="range-hint">Inclusive calendar days become the quantity.</p>
+          </div>
+
+          <div id="manual-fields" class="mode-fields hidden">
+            <label>
+              Number of sessions / days
+              <input type="number" id="qtyManual" name="qtyManual" min="1" step="1" value="12" />
+            </label>
+          </div>
+
+          <label>
+            Cost per session (INR)
+            <input type="number" id="unitRate" name="unitRate" min="0" step="1" value="1300" required />
+          </label>
+
+          <div class="calc-card" aria-live="polite">
+            <div>
+              <span class="calc-label">Quantity</span>
+              <strong id="calc-qty">0</strong>
+            </div>
+            <div>
+              <span class="calc-label">Amount due</span>
+              <strong id="calc-amount">INR 0</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="field-group collapsible">
+          <details open>
+            <summary>Billed to</summary>
+            <label>
+              Client name
+              <input type="text" id="clientName" name="clientName" value="Keemaya Productions Private Limited" required />
+            </label>
+            <label>
+              Client address
+              <textarea id="clientAddress" name="clientAddress" rows="3" required>B/414, Orchard Road Mall, Royal Palm,
+Aarey Milk Colony, Goregaon East,
+Mumbai - 400065, Maharashtra</textarea>
+            </label>
+          </details>
+        </section>
+
+        <section class="field-group collapsible">
+          <details id="seller-details" open>
+            <summary>Your details (name, PAN, bank, UPI)</summary>
+            <p class="hint">
+              Not stored on the website — saved only in <strong>this browser</strong> after you type them.
+            </p>
+            <label>
+              Your name
+              <input type="text" id="sellerName" name="sellerName" placeholder="YOUR NAME" required autocomplete="name" />
+            </label>
+            <label>
+              Address
+              <textarea id="sellerAddress" name="sellerAddress" rows="3" placeholder="Your billing address" required></textarea>
+            </label>
+            <div class="row">
+              <label>
+                Email
+                <input type="email" id="sellerEmail" name="sellerEmail" placeholder="you@email.com" required autocomplete="email" />
+              </label>
+              <label>
+                Phone
+                <input type="text" id="sellerPhone" name="sellerPhone" placeholder="+91 …" required autocomplete="tel" />
+              </label>
+            </div>
+            <label>
+              PAN
+              <input type="text" id="sellerPan" name="sellerPan" placeholder="PAN" required autocomplete="off" />
+            </label>
+            <div class="row">
+              <label>
+                Bank
+                <input type="text" id="bankName" name="bankName" placeholder="Bank name" required autocomplete="off" />
+              </label>
+              <label>
+                Account name
+                <input type="text" id="acctName" name="acctName" placeholder="Account holder name" required autocomplete="off" />
+              </label>
+            </div>
+            <div class="row">
+              <label>
+                Account number
+                <input type="text" id="acctNumber" name="acctNumber" placeholder="Account number" required autocomplete="off" />
+              </label>
+              <label>
+                IFSC
+                <input type="text" id="ifsc" name="ifsc" placeholder="IFSC" required autocomplete="off" />
+              </label>
+            </div>
+            <label>
+              UPI
+              <input type="text" id="upi" name="upi" placeholder="name@upi" required autocomplete="off" />
+            </label>
+            <button type="button" class="btn ghost" id="btn-clear-profile">Clear saved details from this browser</button>
+          </details>
+        </section>
+
+        <div class="actions">
+          <button type="button" class="btn primary" id="btn-download" disabled>Download PDF</button>
+        </div>
+        <p class="hint action-hint">Opens the print dialog — choose <strong>Save as PDF</strong> as the destination.</p>
+        <p class="form-error" id="form-error" hidden></p>
+      </form>
+    </aside>
+
+    <main class="preview-wrap">
+      <div class="preview-toolbar">
+        <span>Live preview</span>
+        <span id="preview-status" class="status warn">Complete the form to enable download</span>
+      </div>
+
+      <div class="preview-stage">
+        <article class="invoice" id="invoice" aria-label="Invoice preview">
+          <div class="inv-topbar"></div>
+
+          <header class="inv-header">
+            <div class="inv-seller">
+              <h1 id="pv-seller-name">YOUR NAME</h1>
+              <p id="pv-seller-address" class="muted"></p>
+              <p class="muted">
+                <span id="pv-seller-email"></span> | <span id="pv-seller-phone"></span>
+              </p>
+              <p class="muted">PAN : <span id="pv-seller-pan"></span></p>
+            </div>
+            <div class="inv-meta">
+              <p class="inv-title">INVOICE</p>
+              <p class="inv-number" id="pv-invoice-number">#003</p>
+              <p class="inv-date">
+                Date Issued: <strong id="pv-date-issued"></strong>
+              </p>
+            </div>
+          </header>
+
+          <section class="inv-billto">
+            <p class="label">BILLED TO</p>
+            <p class="client-name" id="pv-client-name"></p>
+            <p class="muted" id="pv-client-address"></p>
+          </section>
+
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>DESCRIPTION OF SERVICES</th>
+                <th>QTY</th>
+                <th>UNIT RATE</th>
+                <th>AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td id="pv-description">Cult Live Shoots</td>
+                <td id="pv-qty">—</td>
+                <td id="pv-rate">—</td>
+                <td id="pv-line-amount">—</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <section class="inv-bottom">
+            <div class="pay-box">
+              <p class="pay-title">PAYMENT INSTRUCTIONS</p>
+              <dl>
+                <div><dt>Bank</dt><dd id="pv-bank"></dd></div>
+                <div><dt>Acct Name</dt><dd id="pv-acct-name"></dd></div>
+                <div><dt>Account</dt><dd id="pv-acct-number"></dd></div>
+                <div><dt>IFSC</dt><dd id="pv-ifsc"></dd></div>
+              </dl>
+              <hr />
+              <p class="upi"><strong>UPI:</strong> <span id="pv-upi"></span></p>
+            </div>
+            <div class="total-block">
+              <p class="label">TOTAL AMOUNT DUE</p>
+              <p class="total" id="pv-total">INR 0</p>
+              <div class="signature">
+                <img src="assets/signature.png" alt="Signature" id="pv-signature" />
+                <p class="sign-name" id="pv-sign-name"></p>
+              </div>
+            </div>
+          </section>
+
+          <footer class="inv-footer">
+            <p class="thanks">Thank you for your business!</p>
+            <p class="muted small">
+              If you have any inquiries, please reply to
+              <span id="pv-footer-email"></span>, or WhatsApp on
+              <span id="pv-footer-phone"></span>.
+            </p>
+          </footer>
+        </article>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

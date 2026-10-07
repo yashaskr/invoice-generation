@@ -1,0 +1,10 @@
+_preview/
+*.pdf
+.DS_Store
+Thumbs.db
+
+# Keep only the signature used by the site
+assets/july_img0.png
+assets/may_img0.png
+assets/signature_july_crop.png
+assets/signature_may_crop.png
