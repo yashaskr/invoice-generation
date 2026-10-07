@@ -34,20 +34,17 @@
               <input type="date" id="dateIssued" name="dateIssued" required />
             </label>
           </div>
-          <label>
-            Description of services
-            <input type="text" id="description" name="description" value="Cult Live Shoots" required />
-          </label>
         </section>
 
         <section class="field-group">
-          <h2>Sessions</h2>
-          <div class="segmented" role="tablist" aria-label="Quantity mode">
-            <button type="button" class="segment active" data-mode="range" aria-pressed="true">Date range</button>
-            <button type="button" class="segment" data-mode="manual" aria-pressed="false">Number of days</button>
-          </div>
+          <h2>Services</h2>
+          <p class="hint">Add one or more line items. Amount for each row is qty × unit rate; the invoice total is their sum.</p>
 
-          <div id="range-fields" class="mode-fields">
+          <div id="line-items" class="line-items"></div>
+          <button type="button" class="btn ghost" id="btn-add-line">+ Add another service</button>
+
+          <details class="qty-helper">
+            <summary>Optional: set first line qty from a date range</summary>
             <div class="row">
               <label>
                 From
@@ -58,24 +55,13 @@
                 <input type="date" id="dateTo" name="dateTo" />
               </label>
             </div>
-            <p class="hint" id="range-hint">Inclusive calendar days become the quantity.</p>
-          </div>
-
-          <div id="manual-fields" class="mode-fields hidden">
-            <label>
-              Number of sessions / days
-              <input type="number" id="qtyManual" name="qtyManual" min="1" step="1" value="12" />
-            </label>
-          </div>
-
-          <label>
-            Cost per session (INR)
-            <input type="number" id="unitRate" name="unitRate" min="0" step="1" value="1300" required />
-          </label>
+            <p class="hint" id="range-hint">Inclusive calendar days.</p>
+            <button type="button" class="btn ghost" id="btn-apply-range">Apply days to first service</button>
+          </details>
 
           <div class="calc-card" aria-live="polite">
             <div>
-              <span class="calc-label">Quantity</span>
+              <span class="calc-label">Line items</span>
               <strong id="calc-qty">0</strong>
             </div>
             <div>
@@ -213,12 +199,12 @@ Mumbai - 400065, Maharashtra</textarea>
                 <th>AMOUNT</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="pv-lines">
               <tr>
-                <td id="pv-description">Cult Live Shoots</td>
-                <td id="pv-qty">—</td>
-                <td id="pv-rate">—</td>
-                <td id="pv-line-amount">—</td>
+                <td>Cult Live Shoots</td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
               </tr>
             </tbody>
           </table>

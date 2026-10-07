@@ -2,6 +2,7 @@
   const $ = (id) => document.getElementById(id);
 
   const PROFILE_KEY = "cult-invoice-profile-v1";
+  const LINES_KEY = "cult-invoice-lines-v1";
   const PROFILE_FIELDS = [
     "sellerName",
     "sellerAddress",
@@ -16,19 +17,20 @@
   ];
 
   const form = $("invoice-form");
-  const modeButtons = document.querySelectorAll(".segment");
-  const rangeFields = $("range-fields");
-  const manualFields = $("manual-fields");
+  const lineItemsEl = $("line-items");
   const rangeHint = $("range-hint");
   const formError = $("form-error");
   const btnDownload = $("btn-download");
   const btnClearProfile = $("btn-clear-profile");
+  const btnAddLine = $("btn-add-line");
+  const btnApplyRange = $("btn-apply-range");
   const sellerDetails = $("seller-details");
   const previewStatus = $("preview-status");
   const calcQty = $("calc-qty");
   const calcAmount = $("calc-amount");
+  const pvLines = $("pv-lines");
 
-  let qtyMode = "range";
+  let lineSeq = 0;
 
   function loadProfile() {
     try {
@@ -65,10 +67,25 @@
     render();
   }
 
+  function saveLines() {
+    localStorage.setItem(LINES_KEY, JSON.stringify(readLinesFromDom()));
+  }
+
+  function loadLines() {
+    try {
+      const raw = localStorage.getItem(LINES_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data) || !data.length) return null;
+      return data;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function displaySignName(raw) {
     const name = String(raw || "").trim();
     if (!name) return "";
-    // "SHEETAL SRINATH" → "Sheetal Srinath"
     return name
       .toLowerCase()
       .split(/\s+/)
@@ -135,13 +152,80 @@
     return cleaned.startsWith("#") ? cleaned : `#${cleaned}`;
   }
 
-  function getQuantity() {
-    if (qtyMode === "manual") {
-      const n = Number($("qtyManual").value);
-      if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return null;
-      return n;
-    }
-    return inclusiveDays($("dateFrom").value, $("dateTo").value);
+  function createLineCard(line = {}) {
+    const id = `line-${++lineSeq}`;
+    const card = document.createElement("div");
+    card.className = "line-item";
+    card.dataset.lineId = id;
+    card.innerHTML = `
+      <div class="line-item-head">
+        <span class="line-item-title">Service</span>
+        <button type="button" class="btn-text btn-remove-line">Remove</button>
+      </div>
+      <label>
+        Description of services
+        <input type="text" class="line-desc" value="${escapeAttr(line.description || "Cult Live Shoots")}" required />
+      </label>
+      <div class="row row-3">
+        <label>
+          Qty
+          <input type="number" class="line-qty" min="1" step="1" value="${escapeAttr(String(line.qty ?? 1))}" required />
+        </label>
+        <label>
+          Unit rate (INR)
+          <input type="number" class="line-rate" min="0" step="1" value="${escapeAttr(String(line.rate ?? 1300))}" required />
+        </label>
+        <label>
+          Amount
+          <input type="text" class="line-amount" value="—" readonly tabindex="-1" />
+        </label>
+      </div>
+    `;
+    return card;
+  }
+
+  function escapeAttr(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
+  }
+
+  function readLinesFromDom() {
+    return Array.from(lineItemsEl.querySelectorAll(".line-item")).map((card) => {
+      const description = card.querySelector(".line-desc").value.trim();
+      const qty = Number(card.querySelector(".line-qty").value);
+      const rate = Number(card.querySelector(".line-rate").value);
+      const amount =
+        Number.isInteger(qty) && qty > 0 && Number.isFinite(rate) && rate >= 0
+          ? qty * rate
+          : null;
+      return { description, qty, rate, amount, el: card };
+    });
+  }
+
+  function renumberLines() {
+    const cards = lineItemsEl.querySelectorAll(".line-item");
+    cards.forEach((card, index) => {
+      card.querySelector(".line-item-title").textContent = `Service ${index + 1}`;
+      const removeBtn = card.querySelector(".btn-remove-line");
+      removeBtn.hidden = cards.length <= 1;
+    });
+  }
+
+  function addLine(line) {
+    const card = createLineCard(line);
+    lineItemsEl.appendChild(card);
+    renumberLines();
+    updateLineAmounts();
+  }
+
+  function updateLineAmounts() {
+    readLinesFromDom().forEach((line) => {
+      const amountInput = line.el.querySelector(".line-amount");
+      amountInput.value =
+        line.amount != null ? formatINR(line.amount) : "—";
+    });
   }
 
   function normalizePaymentFields() {
@@ -159,8 +243,8 @@
     form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
   }
 
-  function markInvalid(id) {
-    const el = $(id);
+  function markInvalid(elOrId) {
+    const el = typeof elOrId === "string" ? $(elOrId) : elOrId;
     if (el) el.classList.add("is-invalid");
   }
 
@@ -192,15 +276,7 @@
     const errors = [];
     clearFieldErrors();
 
-    const requiredIds = [
-      "invoiceNumber",
-      "dateIssued",
-      "description",
-      "unitRate",
-      "clientName",
-      "clientAddress",
-      ...PROFILE_FIELDS,
-    ];
+    const requiredIds = ["invoiceNumber", "dateIssued", "clientName", "clientAddress", ...PROFILE_FIELDS];
 
     for (const id of requiredIds) {
       if (!String($(id).value || "").trim()) {
@@ -215,28 +291,26 @@
       }
     }
 
-    const rate = Number($("unitRate").value);
-    if (!Number.isFinite(rate) || rate < 0) {
-      markInvalid("unitRate");
-      errors.push("Cost per session must be a valid number.");
+    const lines = readLinesFromDom();
+    if (!lines.length) {
+      errors.push("Add at least one service line.");
     }
 
-    const qty = getQuantity();
-    if (qtyMode === "range") {
-      if (!$("dateFrom").value || !$("dateTo").value) {
-        markInvalid("dateFrom");
-        markInvalid("dateTo");
-        errors.push("Choose both From and To dates.");
-      } else if (qty === null) {
-        markInvalid("dateTo");
-        errors.push("To date must be on or after From date.");
+    lines.forEach((line, index) => {
+      if (!line.description) {
+        markInvalid(line.el.querySelector(".line-desc"));
+        errors.push(`Service ${index + 1}: enter a description.`);
       }
-    } else if (qty === null) {
-      markInvalid("qtyManual");
-      errors.push("Enter a whole number of sessions / days greater than 0.");
-    }
+      if (!Number.isInteger(line.qty) || line.qty <= 0) {
+        markInvalid(line.el.querySelector(".line-qty"));
+        errors.push(`Service ${index + 1}: qty must be a whole number greater than 0.`);
+      }
+      if (!Number.isFinite(line.rate) || line.rate < 0) {
+        markInvalid(line.el.querySelector(".line-rate"));
+        errors.push(`Service ${index + 1}: enter a valid unit rate.`);
+      }
+    });
 
-    // Payment / identity format checks once the user has entered enough text
     const pan = $("sellerPan").value.trim().toUpperCase();
     const bankName = $("bankName").value.trim();
     const acctName = $("acctName").value.trim();
@@ -292,19 +366,26 @@
       if (sellerDetails) sellerDetails.open = true;
     }
 
-    return { ok: errors.length === 0, errors, qty, rate };
+    const total = lines.reduce((sum, line) => sum + (line.amount || 0), 0);
+    const totalQty = lines.reduce(
+      (sum, line) => sum + (Number.isInteger(line.qty) && line.qty > 0 ? line.qty : 0),
+      0
+    );
+
+    return { ok: errors.length === 0, errors, lines, total, totalQty };
   }
 
-  function collect(qty, rate) {
-    const amount =
-      qty != null && rate != null && Number.isFinite(rate) ? qty * rate : 0;
+  function collect(lines, total) {
     return {
       invoiceNumber: invoiceNumberDisplay($("invoiceNumber").value),
       dateIssued: $("dateIssued").value,
-      description: $("description").value.trim(),
-      qty,
-      rate,
-      amount,
+      lines: lines.map(({ description, qty, rate, amount }) => ({
+        description,
+        qty,
+        rate,
+        amount,
+      })),
+      total,
       clientName: $("clientName").value.trim(),
       clientAddress: $("clientAddress").value.trim(),
       sellerName: $("sellerName").value.trim(),
@@ -320,18 +401,50 @@
     };
   }
 
+  function renderPreviewLines(lines) {
+    pvLines.innerHTML = "";
+    if (!lines.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>—</td><td>—</td><td>—</td><td>—</td>";
+      pvLines.appendChild(tr);
+      return;
+    }
+
+    lines.forEach((line) => {
+      const tr = document.createElement("tr");
+      const qtyOk = Number.isInteger(line.qty) && line.qty > 0;
+      const rateOk = Number.isFinite(line.rate) && line.rate >= 0;
+      tr.innerHTML = `
+        <td>${escapeHtml(line.description || "—")}</td>
+        <td>${qtyOk ? String(line.qty) : "—"}</td>
+        <td>${rateOk ? formatINR(line.rate) : "—"}</td>
+        <td>${line.amount != null ? formatINR(line.amount) : "—"}</td>
+      `;
+      pvLines.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function render() {
-    const { ok, errors, qty, rate } = validate();
-    const data = collect(qty, rate);
+    updateLineAmounts();
+    const { ok, errors, lines, total, totalQty } = validate();
+    const data = collect(lines, total);
 
-    calcQty.textContent = qty != null ? String(qty) : "—";
-    calcAmount.textContent =
-      qty != null && Number.isFinite(rate) ? formatINR(qty * rate) : "INR 0";
+    calcQty.textContent = String(lines.length);
+    calcAmount.textContent = formatINR(total || 0);
 
-    if (qtyMode === "range" && qty != null) {
-      rangeHint.textContent = `${qty} inclusive calendar day${qty === 1 ? "" : "s"} → quantity.`;
-    } else if (qtyMode === "range") {
-      rangeHint.textContent = "Inclusive calendar days become the quantity.";
+    const rangeDays = inclusiveDays($("dateFrom").value, $("dateTo").value);
+    if (rangeDays != null) {
+      rangeHint.textContent = `${rangeDays} inclusive calendar day${rangeDays === 1 ? "" : "s"} — click Apply to set first service qty.`;
+    } else {
+      rangeHint.textContent = "Inclusive calendar days.";
     }
 
     $("pv-seller-name").textContent = data.sellerName || "YOUR NAME";
@@ -344,13 +457,8 @@
     $("pv-date-issued").textContent = formatLongDate(data.dateIssued);
     $("pv-client-name").textContent = data.clientName || "—";
     $("pv-client-address").textContent = data.clientAddress || "";
-    $("pv-description").textContent = data.description || "—";
-    $("pv-qty").textContent = qty != null ? String(qty) : "—";
-    $("pv-rate").textContent = Number.isFinite(rate) ? formatINR(rate) : "—";
-    $("pv-line-amount").textContent =
-      qty != null && Number.isFinite(rate) ? formatINR(qty * rate) : "—";
-    $("pv-total").textContent =
-      qty != null && Number.isFinite(rate) ? formatINR(qty * rate) : "INR 0";
+    renderPreviewLines(lines);
+    $("pv-total").textContent = formatINR(total || 0);
     $("pv-bank").textContent = data.bankName || "";
     $("pv-acct-name").textContent = data.acctName || "";
     $("pv-acct-number").textContent = data.acctNumber || "";
@@ -362,7 +470,7 @@
     btnDownload.disabled = !ok;
     if (ok) {
       formError.hidden = true;
-      previewStatus.textContent = "Ready to download";
+      previewStatus.textContent = `Ready to download · ${lines.length} line${lines.length === 1 ? "" : "s"} · ${totalQty} qty`;
       previewStatus.classList.remove("warn");
       previewStatus.classList.add("ok");
     } else {
@@ -370,18 +478,6 @@
       previewStatus.classList.add("warn");
       previewStatus.classList.remove("ok");
     }
-  }
-
-  function setMode(mode) {
-    qtyMode = mode;
-    modeButtons.forEach((btn) => {
-      const active = btn.dataset.mode === mode;
-      btn.classList.toggle("active", active);
-      btn.setAttribute("aria-pressed", String(active));
-    });
-    rangeFields.classList.toggle("hidden", mode !== "range");
-    manualFields.classList.toggle("hidden", mode !== "manual");
-    render();
   }
 
   function waitForImages(root) {
@@ -412,7 +508,6 @@
   }
 
   function addCanvasPage(pdf, canvas, pageW, pageH) {
-    // Fit within one A4 page; never overflow onto an accidental extra page
     const scale = Math.min(pageW / canvas.width, pageH / canvas.height);
     const imgW = canvas.width * scale;
     const imgH = canvas.height * scale;
@@ -430,7 +525,7 @@
   }
 
   async function downloadPdf() {
-    const { ok, errors, qty, rate } = validate();
+    const { ok, errors, lines, total } = validate();
     if (!ok) {
       formError.hidden = false;
       formError.textContent = errors[0];
@@ -445,7 +540,7 @@
       return;
     }
 
-    const data = collect(qty, rate);
+    const data = collect(lines, total);
     const num = String(data.invoiceNumber).replace("#", "");
     const filename = `Cult Shoots invoice - ${num}.pdf`;
 
@@ -476,7 +571,6 @@
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
 
-      // A4 height in px at this invoice width (210×297mm)
       const pageHeightPx = clone.offsetWidth * (297 / 210);
       const closing = clone.querySelector(".inv-closing");
       const needsSecondPage =
@@ -486,8 +580,6 @@
         const canvas = await captureElement(html2canvasFn, clone);
         addCanvasPage(pdf, canvas, pageW, pageH);
       } else {
-        // Page 1: header + billed to + table
-        // Page 2: payment + total + signature + thank-you (kept together)
         const page2 = document.createElement("article");
         page2.className = "invoice invoice-export invoice-page2";
         page2.innerHTML = '<div class="inv-topbar"></div>';
@@ -517,25 +609,73 @@
     }
   }
 
-  modeButtons.forEach((btn) => {
-    btn.addEventListener("click", () => setMode(btn.dataset.mode));
+  function applyRangeToFirstLine() {
+    const days = inclusiveDays($("dateFrom").value, $("dateTo").value);
+    const firstQty = lineItemsEl.querySelector(".line-item .line-qty");
+    if (days == null) {
+      formError.hidden = false;
+      formError.textContent = "Choose a valid From/To date range first.";
+      markInvalid("dateFrom");
+      markInvalid("dateTo");
+      return;
+    }
+    if (!firstQty) return;
+    firstQty.value = String(days);
+    saveLines();
+    render();
+  }
+
+  lineItemsEl.addEventListener("click", (event) => {
+    const removeBtn = event.target.closest(".btn-remove-line");
+    if (!removeBtn) return;
+    const card = removeBtn.closest(".line-item");
+    if (!card) return;
+    if (lineItemsEl.querySelectorAll(".line-item").length <= 1) return;
+    card.remove();
+    renumberLines();
+    saveLines();
+    render();
   });
+
+  btnAddLine.addEventListener("click", () => {
+    addLine({ description: "", qty: 1, rate: 1300 });
+    saveLines();
+    render();
+    const last = lineItemsEl.querySelector(".line-item:last-child .line-desc");
+    if (last) last.focus();
+  });
+
+  btnApplyRange.addEventListener("click", applyRangeToFirstLine);
 
   form.addEventListener("input", (event) => {
     const id = event.target && event.target.id;
     if (id === "sellerPan" || id === "ifsc" || id === "acctNumber" || id === "upi") {
       normalizePaymentFields();
     }
+    if (event.target.closest(".line-item")) {
+      updateLineAmounts();
+      saveLines();
+    }
     saveProfile();
     render();
   });
+
   form.addEventListener("change", () => {
     normalizePaymentFields();
     saveProfile();
+    saveLines();
     render();
   });
+
   btnDownload.addEventListener("click", downloadPdf);
   btnClearProfile.addEventListener("click", clearProfile);
+
+  const savedLines = loadLines();
+  if (savedLines) {
+    savedLines.forEach((line) => addLine(line));
+  } else {
+    addLine({ description: "Cult Live Shoots", qty: 12, rate: 1300 });
+  }
 
   const hadProfile = loadProfile();
   if (sellerDetails) sellerDetails.open = !hadProfile;
