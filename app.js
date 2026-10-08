@@ -582,7 +582,18 @@
     );
   }
 
+  var EXPORT_WIDTH_PX = 794;
+  var A4_HEIGHT_PX = Math.round(EXPORT_WIDTH_PX * (297 / 210)); // ~1123
+
   async function captureElement(html2canvasFn, el) {
+    // Pin size so mobile viewports cannot change the capture
+    el.style.width = EXPORT_WIDTH_PX + "px";
+    el.style.maxWidth = EXPORT_WIDTH_PX + "px";
+    el.style.minWidth = EXPORT_WIDTH_PX + "px";
+    el.style.height = "auto";
+    el.style.minHeight = "0";
+    el.style.transform = "none";
+
     return html2canvasFn(el, {
       scale: 2,
       useCORS: true,
@@ -591,16 +602,18 @@
       logging: false,
       scrollX: 0,
       scrollY: 0,
-      windowWidth: el.offsetWidth,
-      windowHeight: el.offsetHeight,
+      width: EXPORT_WIDTH_PX,
+      windowWidth: EXPORT_WIDTH_PX,
+      windowHeight: Math.max(el.scrollHeight, el.offsetHeight, 1),
     });
   }
 
-  function addCanvasPage(pdf, canvas, pageW, pageH) {
-    const scale = Math.min(pageW / canvas.width, pageH / canvas.height);
-    const imgW = canvas.width * scale;
-    const imgH = canvas.height * scale;
-    const x = (pageW - imgW) / 2;
+  function addCanvasAsSinglePage(pdf, canvas, pageW, pageH) {
+    // Always one image → one PDF page (shrink to fit A4)
+    var scale = Math.min(pageW / canvas.width, pageH / canvas.height);
+    var imgW = canvas.width * scale;
+    var imgH = canvas.height * scale;
+    var x = (pageW - imgW) / 2;
     pdf.addImage(
       canvas.toDataURL("image/jpeg", 0.98),
       "JPEG",
@@ -611,6 +624,17 @@
       undefined,
       "FAST"
     );
+  }
+
+  function forceExportLayout(el) {
+    el.style.cssText =
+      "width:" +
+      EXPORT_WIDTH_PX +
+      "px !important;max-width:" +
+      EXPORT_WIDTH_PX +
+      "px !important;min-width:" +
+      EXPORT_WIDTH_PX +
+      "px !important;min-height:0 !important;height:auto !important;transform:none !important;margin:0 !important;box-shadow:none !important;";
   }
 
   async function downloadPdf() {
@@ -641,6 +665,7 @@
     const clone = $("invoice").cloneNode(true);
     clone.id = "invoice-export";
     clone.classList.add("invoice-export");
+    forceExportLayout(clone);
     host.appendChild(clone);
     document.body.appendChild(host);
 
@@ -649,7 +674,11 @@
         await document.fonts.ready;
       }
       await waitForImages(clone);
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(function (r) {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(r);
+        });
+      });
 
       const pdf = new jsPdfCtor({
         orientation: "portrait",
@@ -660,25 +689,27 @@
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
 
-      const pageHeightPx = clone.offsetWidth * (297 / 210);
-      const closing = clone.querySelector(".inv-closing");
-      const needsSecondPage =
-        !!closing && clone.offsetHeight > pageHeightPx - 12;
+      // Measure at fixed A4 width only (phone width was falsely triggering page 2)
+      forceExportLayout(clone);
+      var contentHeight = Math.max(clone.scrollHeight, clone.offsetHeight);
+      var closing = clone.querySelector(".inv-closing");
+      // Only split when clearly taller than one A4 (~15% overflow), not tiny rounding
+      var needsSecondPage =
+        !!closing && contentHeight > A4_HEIGHT_PX * 1.15;
 
       if (!needsSecondPage) {
-        const note = clone.querySelector(".inv-continue-note");
+        var note = clone.querySelector(".inv-continue-note");
         if (note && note.parentNode) note.parentNode.removeChild(note);
-        const canvas = await captureElement(html2canvasFn, clone);
-        addCanvasPage(pdf, canvas, pageW, pageH);
+        var canvas = await captureElement(html2canvasFn, clone);
+        addCanvasAsSinglePage(pdf, canvas, pageW, pageH);
       } else {
-        // Professional continuation page — not a bare payment fragment
         clone.classList.add("invoice-page1");
-        const page2 = document.createElement("article");
+        var page2 = document.createElement("article");
         page2.className = "invoice invoice-export invoice-page2";
         page2.innerHTML =
           '<div class="inv-topbar"></div>' +
           '<header class="inv-page2-header">' +
-          '<div>' +
+          "<div>" +
           "<h2></h2>" +
           '<p class="muted page2-client"></p>' +
           "</div>" +
@@ -688,11 +719,12 @@
           '<p class="inv-date">Date Issued: <strong></strong></p>' +
           "</div>" +
           "</header>";
+        forceExportLayout(page2);
 
-        const h2 = qs("h2", page2);
-        const clientEl = qs(".page2-client", page2);
-        const numEl = qs(".inv-number", page2);
-        const dateEl = qs(".inv-date strong", page2);
+        var h2 = qs("h2", page2);
+        var clientEl = qs(".page2-client", page2);
+        var numEl = qs(".inv-number", page2);
+        var dateEl = qs(".inv-date strong", page2);
         if (h2) h2.textContent = data.sellerName || "INVOICE";
         if (clientEl) {
           clientEl.textContent = data.clientName
@@ -712,17 +744,18 @@
           });
         });
 
-        const canvas1 = await captureElement(html2canvasFn, clone);
-        addCanvasPage(pdf, canvas1, pageW, pageH);
+        var canvas1 = await captureElement(html2canvasFn, clone);
+        addCanvasAsSinglePage(pdf, canvas1, pageW, pageH);
 
         pdf.addPage();
-        const canvas2 = await captureElement(html2canvasFn, page2);
-        addCanvasPage(pdf, canvas2, pageW, pageH);
+        var canvas2 = await captureElement(html2canvasFn, page2);
+        addCanvasAsSinglePage(pdf, canvas2, pageW, pageH);
       }
 
+      // Ensure we never accidentally leave blank trailing pages
       pdf.save(filename);
     } catch (err) {
-      console.error(err);
+      if (window.console && console.error) console.error(err);
       formError.hidden = false;
       formError.textContent = "Could not create PDF. Please try again.";
     } finally {

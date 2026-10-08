@@ -419,16 +419,24 @@ textarea.is-invalid {
   box-shadow: 0 0 0 3px rgba(217, 45, 32, 0.12);
 }
 
+/* Fixed desktop A4 width — must ignore phone viewport or height math breaks */
 .pdf-export-host {
-  position: fixed;
-  inset: 0;
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 794px !important;
+  max-width: 794px !important;
+  min-width: 794px !important;
+  height: auto !important;
   z-index: 10000;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.45);
-  overflow: auto;
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #ffffff !important;
+  overflow: visible !important;
+  pointer-events: none;
 }
 
 .pdf-export-host::before {
@@ -445,17 +453,21 @@ textarea.is-invalid {
   font-weight: 700;
   font-size: 0.85rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
 }
 
 .invoice-export,
-.pdf-export-host .invoice {
+.pdf-export-host .invoice,
+.pdf-export-host .invoice.invoice-export {
   transform: none !important;
   margin: 0 !important;
-  box-shadow: 0 18px 50px rgba(22, 48, 79, 0.2) !important;
+  box-shadow: none !important;
   width: 794px !important;
-  min-height: auto !important;
-  height: auto !important;
+  min-width: 794px !important;
   max-width: 794px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 48px 52px 40px !important;
 }
 
 .inv-closing {
@@ -785,6 +797,16 @@ textarea.is-invalid {
 @media (max-width: 1100px) {
   .app {
     display: block;
+  }
+
+  /* PDF export must stay desktop A4 width on phones */
+  .pdf-export-host,
+  .pdf-export-host .invoice,
+  .pdf-export-host .invoice-export {
+    width: 794px !important;
+    min-width: 794px !important;
+    max-width: 794px !important;
+    transform: none !important;
   }
 
   .panel {
