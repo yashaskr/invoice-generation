@@ -16,6 +16,15 @@ Open `index.html` in a browser, or from this folder:
 npx --yes serve .
 ```
 
+## Tests
+
+```bash
+npm install
+npm test
+```
+
+See [TESTING.md](TESTING.md) for white-box unit tests and Playwright E2E (desktop / mobile).
+
 ## Notes
 
 - Add one or more service line items; total = sum of qty × rate.

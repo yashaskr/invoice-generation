@@ -216,7 +216,10 @@
     });
   }
 
+  var Logic = window.InvoiceLogic || {};
+
   function inclusiveDays(fromValue, toValue) {
+    if (Logic.inclusiveDays) return Logic.inclusiveDays(fromValue, toValue);
     const from = parseLocalDate(fromValue);
     const to = parseLocalDate(toValue);
     if (!from || !to) return null;
@@ -226,13 +229,15 @@
   }
 
   function formatINR(n) {
-    return `INR ${Number(n).toLocaleString("en-IN")}`;
+    if (Logic.formatINR) return Logic.formatINR(n);
+    return "INR " + Number(n).toLocaleString("en-IN");
   }
 
   function invoiceNumberDisplay(raw) {
+    if (Logic.invoiceNumberDisplay) return Logic.invoiceNumberDisplay(raw);
     const cleaned = String(raw || "").trim();
     if (!cleaned) return "#";
-    return cleaned.startsWith("#") ? cleaned : `#${cleaned}`;
+    return cleaned.charAt(0) === "#" ? cleaned : "#" + cleaned;
   }
 
   function createLineCard(line) {
@@ -334,27 +339,39 @@
   }
 
   function isValidBankName(value) {
-    return /^[A-Za-z0-9][A-Za-z0-9 .,&'/-]{1,70}$/.test(value);
+    return Logic.isValidBankName
+      ? Logic.isValidBankName(value)
+      : /^[A-Za-z0-9][A-Za-z0-9 .,&'/-]{1,70}$/.test(value);
   }
 
   function isValidAccountNumber(value) {
-    return /^\d{9,18}$/.test(value);
+    return Logic.isValidAccountNumber
+      ? Logic.isValidAccountNumber(value)
+      : /^\d{9,18}$/.test(value);
   }
 
   function isValidIfsc(value) {
-    return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(value);
+    return Logic.isValidIfsc
+      ? Logic.isValidIfsc(value)
+      : /^[A-Z]{4}0[A-Z0-9]{6}$/.test(value);
   }
 
   function isValidUpi(value) {
-    return /^[a-z0-9](?:[a-z0-9.\-_]{1,255})@[a-z][a-z0-9.\-]{1,63}$/.test(value);
+    return Logic.isValidUpi
+      ? Logic.isValidUpi(value)
+      : /^[a-z0-9](?:[a-z0-9.\-_]{1,255})@[a-z][a-z0-9.\-]{1,63}$/.test(value);
   }
 
   function isValidPan(value) {
-    return /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value);
+    return Logic.isValidPan
+      ? Logic.isValidPan(value)
+      : /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value);
   }
 
   function isValidAcctName(value) {
-    return /^[A-Za-z][A-Za-z .'-]{1,70}$/.test(value);
+    return Logic.isValidAcctName
+      ? Logic.isValidAcctName(value)
+      : /^[A-Za-z][A-Za-z .'-]{1,70}$/.test(value);
   }
 
   function validate() {
@@ -582,8 +599,9 @@
     );
   }
 
-  var EXPORT_WIDTH_PX = 794;
-  var A4_HEIGHT_PX = Math.round(EXPORT_WIDTH_PX * (297 / 210)); // ~1123
+  var EXPORT_WIDTH_PX = (Logic && Logic.EXPORT_WIDTH_PX) || 794;
+  var A4_HEIGHT_PX =
+    (Logic && Logic.A4_HEIGHT_PX) || Math.round(EXPORT_WIDTH_PX * (297 / 210));
 
   async function captureElement(html2canvasFn, el) {
     // Pin size so mobile viewports cannot change the capture
@@ -691,11 +709,23 @@
 
       // Measure at fixed A4 width only (phone width was falsely triggering page 2)
       forceExportLayout(clone);
-      var contentHeight = Math.max(clone.scrollHeight, clone.offsetHeight);
+      var noteEarly = clone.querySelector(".inv-continue-note");
+      if (noteEarly) noteEarly.style.display = "none";
+      var contentHeight = Math.max(
+        clone.scrollHeight,
+        clone.offsetHeight,
+        clone.getBoundingClientRect ? clone.getBoundingClientRect().height : 0
+      );
       var closing = clone.querySelector(".inv-closing");
-      // Only split when clearly taller than one A4 (~15% overflow), not tiny rounding
+      var lineCount = qsa(".inv-table tbody tr", clone).length;
       var needsSecondPage =
-        !!closing && contentHeight > A4_HEIGHT_PX * 1.15;
+        !!closing &&
+        (Logic.shouldSplitToSecondPage
+          ? Logic.shouldSplitToSecondPage(contentHeight, {
+              a4HeightPx: A4_HEIGHT_PX,
+              lineCount: lineCount,
+            })
+          : contentHeight > A4_HEIGHT_PX * 1.15);
 
       if (!needsSecondPage) {
         var note = clone.querySelector(".inv-continue-note");
@@ -878,7 +908,7 @@
       addLine(savedLines[i]);
     }
   } else {
-    addLine({ description: "", qty: 1, rate: 0 });
+    addLine({ description: "", qty: 1, rate: 1300 });
   }
 
   const hadProfile = loadProfile();

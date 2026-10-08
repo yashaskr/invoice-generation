@@ -1,7 +1,13 @@
 _preview/
 *.pdf
+!tests/**/*.pdf
 .DS_Store
 Thumbs.db
+node_modules/
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
 
 # Keep only the signature used by the site
 assets/july_img0.png
