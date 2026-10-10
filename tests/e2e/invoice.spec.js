@@ -20,7 +20,8 @@ test.describe("black-box: invoice generator", () => {
     const isMobile = /mobile/i.test(testInfo.project.name);
     if (isMobile) {
       await expect(page.locator("#invoice")).toBeHidden();
-      await page.locator("#preview-panel > summary").click();
+      // Sticky form fields can cover the summary; force open details.
+      await page.locator("#preview-panel > summary").click({ force: true });
       await expect(page.locator("#invoice")).toBeVisible();
     } else {
       await expect(page.locator("#invoice")).toBeVisible();
@@ -104,5 +105,17 @@ test.describe("black-box: invoice generator", () => {
     await expect(page.locator(".line-item").first().locator(".line-qty")).toHaveValue(
       "12"
     );
+  });
+
+  test("switches between classic and vivid templates", async ({ page }) => {
+    await page.goto("/");
+    const invoice = page.locator("#invoice");
+    await expect(invoice).toHaveClass(/template-classic/);
+
+    await page.locator("label.template-option").filter({ hasText: "Vivid" }).click();
+    await expect(invoice).toHaveClass(/template-vivid/);
+
+    await page.locator("label.template-option").filter({ hasText: "Classic" }).click();
+    await expect(invoice).toHaveClass(/template-classic/);
   });
 });

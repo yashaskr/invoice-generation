@@ -75,6 +75,7 @@
 
   const PROFILE_KEY = "cult-invoice-profile-v1";
   const LINES_KEY = "cult-invoice-lines-v1";
+  const TEMPLATE_KEY = "invoice-template-v1";
   const PROFILE_FIELDS = [
     "sellerName",
     "sellerAddress",
@@ -534,10 +535,33 @@
       .replace(/"/g, "&quot;");
   }
 
+  function getSelectedTemplate() {
+    var checked = form && form.querySelector('input[name="invoiceTemplate"]:checked');
+    var value = checked && checked.value === "vivid" ? "vivid" : "classic";
+    return value;
+  }
+
+  function applyTemplate(template) {
+    var invoice = $("invoice");
+    if (!invoice) return;
+    invoice.classList.remove("template-classic", "template-vivid");
+    invoice.classList.add(template === "vivid" ? "template-vivid" : "template-classic");
+    storageSet(TEMPLATE_KEY, template);
+  }
+
+  function loadTemplate() {
+    var saved = storageGet(TEMPLATE_KEY);
+    if (saved !== "classic" && saved !== "vivid") return;
+    var input = form && form.querySelector('input[name="invoiceTemplate"][value="' + saved + '"]');
+    if (input) input.checked = true;
+    applyTemplate(saved);
+  }
+
   function render() {
     updateLineAmounts();
     const { ok, errors, lines, total, totalQty } = validate();
     const data = collect(lines, total);
+    applyTemplate(getSelectedTemplate());
 
     calcQty.textContent = String(lines.length);
     calcAmount.textContent = formatINR(total || 0);
@@ -872,9 +896,12 @@
       } else {
         clone.classList.add("invoice-page1");
         var page2 = document.createElement("article");
-        page2.className = "invoice invoice-export invoice-page2";
+        page2.className =
+          "invoice invoice-export invoice-page2 " +
+          (getSelectedTemplate() === "vivid" ? "template-vivid" : "template-classic");
         page2.innerHTML =
           '<div class="inv-topbar"></div>' +
+          '<div class="inv-hero-band" aria-hidden="true"></div>' +
           '<header class="inv-page2-header">' +
           "<div>" +
           "<h2></h2>" +
@@ -1044,6 +1071,12 @@
       saveLines();
       render();
     });
+
+    qsa('input[name="invoiceTemplate"]', form).forEach(function (el) {
+      el.addEventListener("change", function () {
+        applyTemplate(getSelectedTemplate());
+      });
+    });
   }
 
   const savedLines = loadLines();
@@ -1057,6 +1090,7 @@
 
   const hadProfile = loadProfile();
   if (sellerDetails) sellerDetails.open = !hadProfile;
+  loadTemplate();
   setDefaultDates();
   render();
 })();

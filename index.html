@@ -9,11 +9,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
   <meta http-equiv="Cache-Control" content="no-cache" />
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=11" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="invoice-logic.js?v=9" defer></script>
-  <script src="app.js?v=9" defer></script>
+  <script src="invoice-logic.js?v=11" defer></script>
+  <script src="app.js?v=11" defer></script>
 </head>
 <body>
   <div class="app">
@@ -37,6 +37,27 @@
               <input type="date" id="dateIssued" name="dateIssued" required />
             </label>
           </div>
+          <fieldset class="template-picker">
+            <legend>Template</legend>
+            <div class="template-options" role="radiogroup" aria-label="Invoice template">
+              <label class="template-option">
+                <input type="radio" name="invoiceTemplate" value="classic" checked />
+                <span class="template-card template-card-classic">
+                  <span class="template-swatch" aria-hidden="true"></span>
+                  <strong>Classic</strong>
+                  <em>Clean, minimal navy</em>
+                </span>
+              </label>
+              <label class="template-option">
+                <input type="radio" name="invoiceTemplate" value="vivid" />
+                <span class="template-card template-card-vivid">
+                  <span class="template-swatch" aria-hidden="true"></span>
+                  <strong>Vivid</strong>
+                  <em>Colorful teal &amp; coral</em>
+                </span>
+              </label>
+            </div>
+          </fieldset>
         </section>
 
         <section class="field-group">
@@ -172,8 +193,9 @@
         </summary>
 
       <div class="preview-stage">
-        <article class="invoice" id="invoice" aria-label="Invoice preview">
+        <article class="invoice template-classic" id="invoice" aria-label="Invoice preview">
           <div class="inv-topbar"></div>
+          <div class="inv-hero-band" aria-hidden="true"></div>
 
           <header class="inv-header">
             <div class="inv-seller">
