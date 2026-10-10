@@ -535,23 +535,35 @@
       .replace(/"/g, "&quot;");
   }
 
+  var TEMPLATE_IDS = ["classic", "ember", "ocean", "wine"];
+  var TEMPLATE_CLASSES = TEMPLATE_IDS.map(function (id) {
+    return "template-" + id;
+  });
+
+  function normalizeTemplate(value) {
+    if (value === "vivid") return "ember";
+    if (TEMPLATE_IDS.indexOf(value) !== -1) return value;
+    return "classic";
+  }
+
   function getSelectedTemplate() {
     var checked = form && form.querySelector('input[name="invoiceTemplate"]:checked');
-    var value = checked && checked.value === "vivid" ? "vivid" : "classic";
-    return value;
+    return normalizeTemplate(checked && checked.value);
   }
 
   function applyTemplate(template) {
     var invoice = $("invoice");
     if (!invoice) return;
-    invoice.classList.remove("template-classic", "template-vivid");
-    invoice.classList.add(template === "vivid" ? "template-vivid" : "template-classic");
+    template = normalizeTemplate(template);
+    TEMPLATE_CLASSES.forEach(function (cls) {
+      invoice.classList.remove(cls);
+    });
+    invoice.classList.add("template-" + template);
     storageSet(TEMPLATE_KEY, template);
   }
 
   function loadTemplate() {
-    var saved = storageGet(TEMPLATE_KEY);
-    if (saved !== "classic" && saved !== "vivid") return;
+    var saved = normalizeTemplate(storageGet(TEMPLATE_KEY));
     var input = form && form.querySelector('input[name="invoiceTemplate"][value="' + saved + '"]');
     if (input) input.checked = true;
     applyTemplate(saved);
@@ -897,8 +909,7 @@
         clone.classList.add("invoice-page1");
         var page2 = document.createElement("article");
         page2.className =
-          "invoice invoice-export invoice-page2 " +
-          (getSelectedTemplate() === "vivid" ? "template-vivid" : "template-classic");
+          "invoice invoice-export invoice-page2 template-" + getSelectedTemplate();
         page2.innerHTML =
           '<div class="inv-topbar"></div>' +
           '<div class="inv-hero-band" aria-hidden="true"></div>' +

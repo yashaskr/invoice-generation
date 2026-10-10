@@ -673,8 +673,16 @@ textarea.is-invalid {
   background: linear-gradient(90deg, #1e3a5f, #6b7c8f);
 }
 
-.template-card-vivid .template-swatch {
-  background: linear-gradient(90deg, #0f766e, #fb7185);
+.template-card-ember .template-swatch {
+  background: linear-gradient(90deg, #92400e, #f59e0b);
+}
+
+.template-card-ocean .template-swatch {
+  background: linear-gradient(90deg, #1e3a8a, #38bdf8);
+}
+
+.template-card-wine .template-swatch {
+  background: linear-gradient(90deg, #9f1239, #f9a8d4);
 }
 
 .inv-hero-band {
@@ -702,93 +710,166 @@ textarea.is-invalid {
   background: var(--navy);
 }
 
-/* —— Vivid template —— */
-.invoice.template-vivid {
-  --vivid-ink: #134e4a;
-  --vivid-accent: #0f766e;
-  --vivid-coral: #e11d48;
-  --vivid-soft: #ecfdf8;
-  --vivid-line: #99f6e4;
-  background:
-    linear-gradient(180deg, #f0fdfa 0%, #ffffff 28%, #ffffff 100%);
-  color: #134e4a;
-  border: 1px solid #99f6e4;
+/* —— Colorful templates (shared structure + per-theme tokens) —— */
+.invoice.template-ember {
+  --tpl-ink: #3f2a1d;
+  --tpl-accent: #b45309;
+  --tpl-soft: #fffbeb;
+  --tpl-line: #fde68a;
+  --tpl-title: #fcd34d;
+  --tpl-badge-bg: linear-gradient(135deg, #ffedd5, #fed7aa);
+  --tpl-badge-fg: #9a3412;
+  --tpl-topbar: linear-gradient(90deg, #92400e 0%, #d97706 55%, #fbbf24 100%);
+  --tpl-hero:
+    radial-gradient(420px 120px at 14% 0%, rgba(251, 191, 36, 0.28), transparent 70%),
+    linear-gradient(90deg, rgba(180, 83, 9, 0.12), rgba(251, 191, 36, 0.05));
+  --tpl-th: linear-gradient(90deg, #92400e, #d97706);
+  --tpl-pay: linear-gradient(145deg, #fffbeb, #fff7ed);
+}
+
+.invoice.template-ocean {
+  --tpl-ink: #1e293b;
+  --tpl-accent: #1d4ed8;
+  --tpl-soft: #eff6ff;
+  --tpl-line: #bfdbfe;
+  --tpl-title: #93c5fd;
+  --tpl-badge-bg: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  --tpl-badge-fg: #075985;
+  --tpl-topbar: linear-gradient(90deg, #1e3a8a 0%, #2563eb 50%, #38bdf8 100%);
+  --tpl-hero:
+    radial-gradient(420px 120px at 14% 0%, rgba(56, 189, 248, 0.28), transparent 70%),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.12), rgba(56, 189, 248, 0.05));
+  --tpl-th: linear-gradient(90deg, #1e40af, #2563eb);
+  --tpl-pay: linear-gradient(145deg, #eff6ff, #f0f9ff);
+}
+
+.invoice.template-wine {
+  --tpl-ink: #3f1d2e;
+  --tpl-accent: #9f1239;
+  --tpl-soft: #fff1f2;
+  --tpl-line: #fecdd3;
+  --tpl-title: #fda4af;
+  --tpl-badge-bg: linear-gradient(135deg, #fce7f3, #fbcfe8);
+  --tpl-badge-fg: #9d174d;
+  --tpl-topbar: linear-gradient(90deg, #9f1239 0%, #e11d48 50%, #f9a8d4 100%);
+  --tpl-hero:
+    radial-gradient(420px 120px at 14% 0%, rgba(249, 168, 212, 0.32), transparent 70%),
+    linear-gradient(90deg, rgba(159, 18, 57, 0.12), rgba(244, 114, 182, 0.05));
+  --tpl-th: linear-gradient(90deg, #9f1239, #be123c);
+  --tpl-pay: linear-gradient(145deg, #fff1f2, #fdf2f8);
+}
+
+.invoice.template-ember,
+.invoice.template-ocean,
+.invoice.template-wine {
+  background: linear-gradient(180deg, var(--tpl-soft) 0%, #ffffff 28%, #ffffff 100%);
+  color: var(--tpl-ink);
+  border: 1px solid var(--tpl-line);
   padding-top: 56px;
 }
 
-.invoice.template-vivid .inv-topbar {
+.invoice.template-ember .inv-topbar,
+.invoice.template-ocean .inv-topbar,
+.invoice.template-wine .inv-topbar {
   height: 10px;
-  background: linear-gradient(90deg, #0f766e 0%, #14b8a6 55%, #fb7185 100%);
+  background: var(--tpl-topbar);
 }
 
-.invoice.template-vivid .inv-hero-band {
+.invoice.template-ember .inv-hero-band,
+.invoice.template-ocean .inv-hero-band,
+.invoice.template-wine .inv-hero-band {
   display: block;
   position: absolute;
   top: 10px;
   left: 0;
   right: 0;
   height: 72px;
-  background:
-    radial-gradient(420px 120px at 12% 0%, rgba(251, 113, 133, 0.22), transparent 70%),
-    linear-gradient(90deg, rgba(15, 118, 110, 0.12), rgba(20, 184, 166, 0.05));
+  background: var(--tpl-hero);
   pointer-events: none;
 }
 
-.invoice.template-vivid .inv-seller h1 {
-  color: #0f766e;
+.invoice.template-ember .inv-seller h1,
+.invoice.template-ocean .inv-seller h1,
+.invoice.template-wine .inv-seller h1 {
+  color: var(--tpl-accent);
 }
 
-.invoice.template-vivid .inv-title {
-  color: #99f6e4;
+.invoice.template-ember .inv-title,
+.invoice.template-ocean .inv-title,
+.invoice.template-wine .inv-title {
+  color: var(--tpl-title);
 }
 
-.invoice.template-vivid .inv-number {
-  background: linear-gradient(135deg, #ffe4e6, #fecdd3);
-  color: #9f1239;
+.invoice.template-ember .inv-number,
+.invoice.template-ocean .inv-number,
+.invoice.template-wine .inv-number {
+  background: var(--tpl-badge-bg);
+  color: var(--tpl-badge-fg);
 }
 
-.invoice.template-vivid .inv-date strong,
-.invoice.template-vivid .client-name,
-.invoice.template-vivid .thanks,
-.invoice.template-vivid .total {
-  color: #0f766e;
+.invoice.template-ember .inv-date strong,
+.invoice.template-ember .client-name,
+.invoice.template-ember .thanks,
+.invoice.template-ember .total,
+.invoice.template-ocean .inv-date strong,
+.invoice.template-ocean .client-name,
+.invoice.template-ocean .thanks,
+.invoice.template-ocean .total,
+.invoice.template-wine .inv-date strong,
+.invoice.template-wine .client-name,
+.invoice.template-wine .thanks,
+.invoice.template-wine .total {
+  color: var(--tpl-accent);
 }
 
-.invoice.template-vivid .inv-table th {
-  background: linear-gradient(90deg, #0f766e, #0d9488);
+.invoice.template-ember .inv-table th,
+.invoice.template-ocean .inv-table th,
+.invoice.template-wine .inv-table th {
+  background: var(--tpl-th);
 }
 
-.invoice.template-vivid .inv-table td {
-  color: #134e4a;
-  border-bottom-color: #99f6e4;
+.invoice.template-ember .inv-table td,
+.invoice.template-ocean .inv-table td,
+.invoice.template-wine .inv-table td {
+  color: var(--tpl-ink);
+  border-bottom-color: var(--tpl-line);
 }
 
-.invoice.template-vivid .pay-box {
-  background: linear-gradient(145deg, #ecfdf8, #f0fdfa);
-  border: 1px solid #99f6e4;
+.invoice.template-ember .pay-box,
+.invoice.template-ocean .pay-box,
+.invoice.template-wine .pay-box {
+  background: var(--tpl-pay);
+  border: 1px solid var(--tpl-line);
 }
 
-.invoice.template-vivid .pay-title,
-.invoice.template-vivid .pay-box dt,
-.invoice.template-vivid .upi strong {
-  color: #0f766e;
+.invoice.template-ember .pay-title,
+.invoice.template-ember .pay-box dt,
+.invoice.template-ember .upi strong,
+.invoice.template-ocean .pay-title,
+.invoice.template-ocean .pay-box dt,
+.invoice.template-ocean .upi strong,
+.invoice.template-wine .pay-title,
+.invoice.template-wine .pay-box dt,
+.invoice.template-wine .upi strong {
+  color: var(--tpl-accent);
 }
 
-.invoice.template-vivid .pay-box hr {
-  border-top-color: #99f6e4;
+.invoice.template-ember .pay-box hr,
+.invoice.template-ocean .pay-box hr,
+.invoice.template-wine .pay-box hr {
+  border-top-color: var(--tpl-line);
 }
 
-.invoice.template-vivid.invoice-page2 .inv-page2-header {
-  border-bottom-color: #99f6e4;
+.invoice.template-ember.invoice-page2 .inv-page2-header,
+.invoice.template-ocean.invoice-page2 .inv-page2-header,
+.invoice.template-wine.invoice-page2 .inv-page2-header {
+  border-bottom-color: var(--tpl-line);
 }
 
-.invoice.template-vivid.invoice-page2 .inv-page2-header h2 {
-  color: #0f766e;
-}
-
-.invoice.template-vivid.invoice-page2 .inv-number {
-  background: linear-gradient(135deg, #ffe4e6, #fecdd3);
-  color: #9f1239;
+.invoice.template-ember.invoice-page2 .inv-page2-header h2,
+.invoice.template-ocean.invoice-page2 .inv-page2-header h2,
+.invoice.template-wine.invoice-page2 .inv-page2-header h2 {
+  color: var(--tpl-accent);
 }
 
 .inv-header {

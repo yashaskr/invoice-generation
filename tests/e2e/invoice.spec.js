@@ -107,13 +107,19 @@ test.describe("black-box: invoice generator", () => {
     );
   });
 
-  test("switches between classic and vivid templates", async ({ page }) => {
+  test("switches between classic and colorful templates", async ({ page }) => {
     await page.goto("/");
     const invoice = page.locator("#invoice");
     await expect(invoice).toHaveClass(/template-classic/);
 
-    await page.locator("label.template-option").filter({ hasText: "Vivid" }).click();
-    await expect(invoice).toHaveClass(/template-vivid/);
+    await page.locator("label.template-option").filter({ hasText: "Ember" }).click();
+    await expect(invoice).toHaveClass(/template-ember/);
+
+    await page.locator("label.template-option").filter({ hasText: "Ocean" }).click();
+    await expect(invoice).toHaveClass(/template-ocean/);
+
+    await page.locator("label.template-option").filter({ hasText: "Wine" }).click();
+    await expect(invoice).toHaveClass(/template-wine/);
 
     await page.locator("label.template-option").filter({ hasText: "Classic" }).click();
     await expect(invoice).toHaveClass(/template-classic/);
