@@ -163,4 +163,27 @@ test.describe("black-box: invoice generator", () => {
     const data = await pdfParse(fs.readFileSync(filePath));
     expect(data.numpages).toBe(1);
   });
+
+  test("iPhone Safari path shows Share overlay instead of stuck tab", async ({
+    browser,
+  }, testInfo) => {
+    test.skip(/mobile/i.test(testInfo.project.name), "uses custom iPhone UA context");
+    // UA decides Safari save path; keep a wide viewport so form fields don't cover Download.
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+      viewport: { width: 1280, height: 900 },
+    });
+    const page = await context.newPage();
+    await prepareReadyInvoice(page);
+    await page.locator("#btn-download").click({ force: true });
+    await expect(page.locator("#pdf-safari-overlay")).toBeVisible({
+      timeout: 45_000,
+    });
+    await expect(page.getByRole("heading", { name: /PDF is ready/i })).toBeVisible();
+    await expect(page.locator("#pdf-open-link")).toBeVisible();
+    await page.locator("#pdf-close-overlay").click();
+    await expect(page.locator("#pdf-safari-overlay")).toHaveCount(0);
+    await context.close();
+  });
 });

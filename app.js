@@ -639,6 +639,31 @@
   var A4_HEIGHT_PX =
     (Logic && Logic.A4_HEIGHT_PX) || Math.round(EXPORT_WIDTH_PX * (297 / 210));
 
+  function withTimeout(promise, ms, message) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        reject(new Error(message || "Timed out"));
+      }, ms);
+      promise.then(
+        function (value) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(value);
+        },
+        function (err) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          reject(err);
+        }
+      );
+    });
+  }
+
   async function captureElement(html2canvasFn, el) {
     // Pin size so mobile viewports cannot change the capture
     el.style.width = EXPORT_WIDTH_PX + "px";
@@ -653,8 +678,11 @@
     else if (el.classList.contains("template-ocean")) softBg = "#f8fbff";
     else if (el.classList.contains("template-wine")) softBg = "#fffafb";
 
-    return html2canvasFn(el, {
-      scale: 2,
+    // Lower scale on iOS Safari — full retina capture often hangs or OOMs
+    var scale = isAppleWebKitMobile() ? 1.5 : 2;
+
+    var capture = html2canvasFn(el, {
+      scale: scale,
       useCORS: true,
       allowTaint: true,
       backgroundColor: softBg,
@@ -672,6 +700,8 @@
         }
       },
     });
+
+    return withTimeout(capture, 45000, "PDF capture timed out");
   }
 
   function addCanvasAsSinglePage(pdf, canvas, pageW, pageH) {
@@ -714,11 +744,21 @@
   }
 
   /**
-   * Safari/iOS often fails on jsPDF's blob download (WebKitBlobResource error 1).
-   * Open a tab during the user gesture, then point it at the finished PDF.
+   * Safari/iOS: do NOT navigate a popup to a blob: URL.
+   * That often leaves a stuck "Preparing PDF…" tab (assignment does not throw,
+   * so older code never reached Share / overlay). Instead show an in-page sheet
+   * where Share / Open run from a fresh user tap.
    */
   function savePdfCompatible(pdf, filename, previewWindow) {
     var blob = pdf.output("blob");
+
+    if (previewWindow && !previewWindow.closed) {
+      try {
+        previewWindow.close();
+      } catch (e) {
+        /* ignore */
+      }
+    }
 
     if (!isAppleWebKitMobile()) {
       try {
@@ -731,36 +771,11 @@
 
     var url = URL.createObjectURL(blob);
 
-    if (previewWindow && !previewWindow.closed) {
-      try {
-        previewWindow.location.href = url;
-        setTimeout(function () {
-          try {
-            URL.revokeObjectURL(url);
-          } catch (e) {
-            /* ignore */
-          }
-        }, 60_000);
-        return;
-      } catch (e) {
-        /* continue to other fallbacks */
-      }
+    if (isAppleWebKitMobile()) {
+      openPdfOverlay(url, filename, blob);
+      return;
     }
 
-    // Web Share API (iOS 15+ / supported browsers) — most reliable on iPhone
-    try {
-      var file = new File([blob], filename, { type: "application/pdf" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: filename }).catch(function () {
-          openPdfOverlay(url, filename);
-        });
-        return;
-      }
-    } catch (e) {
-      /* ignore */
-    }
-
-    // Anchor download (works on most desktop browsers; limited on iOS)
     var a = document.createElement("a");
     a.href = url;
     a.download = filename;
@@ -770,34 +785,46 @@
     a.click();
     document.body.removeChild(a);
 
-    // If download attribute is ignored (iOS), show in-page viewer
-    if (isAppleWebKitMobile()) {
-      openPdfOverlay(url, filename);
-    } else {
-      setTimeout(function () {
-        try {
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          /* ignore */
-        }
-      }, 60_000);
-    }
+    setTimeout(function () {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        /* ignore */
+      }
+    }, 60_000);
   }
 
-  function openPdfOverlay(url, filename) {
+  function openPdfOverlay(url, filename, blob) {
     var existing = $("pdf-safari-overlay");
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+    var canShareFiles = false;
+    try {
+      if (blob && navigator.canShare) {
+        var probe = new File([blob], filename, { type: "application/pdf" });
+        canShareFiles = !!navigator.canShare({ files: [probe] });
+      }
+    } catch (e) {
+      canShareFiles = false;
+    }
 
     var overlay = document.createElement("div");
     overlay.id = "pdf-safari-overlay";
     overlay.className = "pdf-safari-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
     overlay.innerHTML =
       '<div class="pdf-safari-card">' +
-      "<h2>Your invoice PDF</h2>" +
-      "<p>Safari sometimes blocks automatic downloads. Use <strong>Share</strong> or " +
-      "<strong>Open PDF</strong>, then tap the share icon → <strong>Save to Files</strong>.</p>" +
+      "<h2>Your invoice PDF is ready</h2>" +
+      "<p>On iPhone, tap <strong>Share / Save</strong> → <strong>Save to Files</strong>, " +
+      "or <strong>Open PDF</strong> then use the share sheet.</p>" +
       '<div class="pdf-safari-actions">' +
-      '<a class="btn primary" id="pdf-open-link" target="_blank" rel="noopener">Open PDF</a>' +
+      (canShareFiles
+        ? '<button type="button" class="btn primary" id="pdf-share-btn">Share / Save PDF</button>'
+        : "") +
+      '<a class="btn ' +
+      (canShareFiles ? "ghost" : "primary") +
+      '" id="pdf-open-link" target="_blank" rel="noopener">Open PDF</a>' +
       '<button type="button" class="btn ghost" id="pdf-close-overlay">Close</button>' +
       "</div>" +
       '<iframe title="PDF preview" class="pdf-safari-frame"></iframe>' +
@@ -808,18 +835,46 @@
     var frame = overlay.querySelector("iframe");
     if (link) {
       link.href = url;
-      link.setAttribute("download", filename);
+      // iOS Safari ignores download=; keep Open as a real navigation from a tap
+      link.removeAttribute("download");
     }
-    if (frame) frame.src = url;
+    if (frame) {
+      try {
+        frame.src = url;
+      } catch (e) {
+        /* some iOS builds block blob iframes — Open/Share still work */
+      }
+    }
 
-    $("pdf-close-overlay").onclick = function () {
+    var shareBtn = $("pdf-share-btn");
+    if (shareBtn && blob) {
+      shareBtn.onclick = function () {
+        try {
+          var file = new File([blob], filename, { type: "application/pdf" });
+          navigator
+            .share({ files: [file], title: filename })
+            .catch(function () {
+              /* user cancelled or share failed — keep overlay open */
+            });
+        } catch (e) {
+          if (link) link.click();
+        }
+      };
+    }
+
+    function closeOverlay() {
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       try {
         URL.revokeObjectURL(url);
       } catch (e) {
         /* ignore */
       }
-    };
+    }
+
+    $("pdf-close-overlay").onclick = closeOverlay;
+    overlay.addEventListener("click", function (event) {
+      if (event.target === overlay) closeOverlay();
+    });
   }
 
   async function downloadPdf() {
@@ -842,23 +897,9 @@
     const num = String(data.invoiceNumber).replace("#", "");
     const filename = "Invoice-" + num + ".pdf";
 
-    // Must open during the tap gesture — after await, Safari blocks popups
+    // Do not open a Safari "Preparing…" popup — navigating it to a blob URL
+    // often fails silently and leaves that tab stuck. Use in-page overlay instead.
     var previewWindow = null;
-    if (isAppleWebKitMobile()) {
-      previewWindow = window.open("about:blank", "_blank");
-      if (previewWindow) {
-        try {
-          previewWindow.document.write(
-            "<!DOCTYPE html><title>Preparing PDF…</title>" +
-              "<body style=\"font-family:-apple-system,sans-serif;padding:2rem;color:#1e3a5f\">" +
-              "<p>Preparing your invoice PDF…</p></body>"
-          );
-          previewWindow.document.close();
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
 
     btnDownload.disabled = true;
     btnDownload.textContent = "Preparing PDF…";
@@ -981,7 +1022,9 @@
       }
       formError.hidden = false;
       formError.textContent =
-        "Could not create PDF. On iPhone Safari, allow pop-ups for this site and try again.";
+        err && err.message && /timed out/i.test(err.message)
+          ? "PDF took too long on this device. Close other tabs and try again, or use Classic template."
+          : "Could not create PDF. Try again — on iPhone you’ll get a Share / Save sheet when it’s ready.";
     } finally {
       if (host && host.parentNode) host.parentNode.removeChild(host);
       btnDownload.textContent = "Download PDF";
