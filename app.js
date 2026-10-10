@@ -655,6 +655,125 @@
       "px !important;min-height:0 !important;height:auto !important;transform:none !important;margin:0 !important;box-shadow:none !important;";
   }
 
+  function isAppleWebKitMobile() {
+    var ua = navigator.userAgent || "";
+    var iOS = /iPad|iPhone|iPod/.test(ua);
+    var iPadOS =
+      navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    var safariDesktop =
+      /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS|Android/i.test(ua);
+    return iOS || iPadOS || safariDesktop;
+  }
+
+  /**
+   * Safari/iOS often fails on jsPDF's blob download (WebKitBlobResource error 1).
+   * Open a tab during the user gesture, then point it at the finished PDF.
+   */
+  function savePdfCompatible(pdf, filename, previewWindow) {
+    var blob = pdf.output("blob");
+
+    if (!isAppleWebKitMobile()) {
+      try {
+        pdf.save(filename);
+        return;
+      } catch (e) {
+        /* fall through to blob link */
+      }
+    }
+
+    var url = URL.createObjectURL(blob);
+
+    if (previewWindow && !previewWindow.closed) {
+      try {
+        previewWindow.location.href = url;
+        setTimeout(function () {
+          try {
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            /* ignore */
+          }
+        }, 60_000);
+        return;
+      } catch (e) {
+        /* continue to other fallbacks */
+      }
+    }
+
+    // Web Share API (iOS 15+ / supported browsers) — most reliable on iPhone
+    try {
+      var file = new File([blob], filename, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: filename }).catch(function () {
+          openPdfOverlay(url, filename);
+        });
+        return;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+
+    // Anchor download (works on most desktop browsers; limited on iOS)
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // If download attribute is ignored (iOS), show in-page viewer
+    if (isAppleWebKitMobile()) {
+      openPdfOverlay(url, filename);
+    } else {
+      setTimeout(function () {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          /* ignore */
+        }
+      }, 60_000);
+    }
+  }
+
+  function openPdfOverlay(url, filename) {
+    var existing = $("pdf-safari-overlay");
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+    var overlay = document.createElement("div");
+    overlay.id = "pdf-safari-overlay";
+    overlay.className = "pdf-safari-overlay";
+    overlay.innerHTML =
+      '<div class="pdf-safari-card">' +
+      "<h2>Your invoice PDF</h2>" +
+      "<p>Safari sometimes blocks automatic downloads. Use <strong>Share</strong> or " +
+      "<strong>Open PDF</strong>, then tap the share icon → <strong>Save to Files</strong>.</p>" +
+      '<div class="pdf-safari-actions">' +
+      '<a class="btn primary" id="pdf-open-link" target="_blank" rel="noopener">Open PDF</a>' +
+      '<button type="button" class="btn ghost" id="pdf-close-overlay">Close</button>' +
+      "</div>" +
+      '<iframe title="PDF preview" class="pdf-safari-frame"></iframe>' +
+      "</div>";
+    document.body.appendChild(overlay);
+
+    var link = $("pdf-open-link");
+    var frame = overlay.querySelector("iframe");
+    if (link) {
+      link.href = url;
+      link.setAttribute("download", filename);
+    }
+    if (frame) frame.src = url;
+
+    $("pdf-close-overlay").onclick = function () {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        /* ignore */
+      }
+    };
+  }
+
   async function downloadPdf() {
     const { ok, errors, lines, total } = validate();
     if (!ok) {
@@ -674,6 +793,24 @@
     const data = collect(lines, total);
     const num = String(data.invoiceNumber).replace("#", "");
     const filename = "Invoice-" + num + ".pdf";
+
+    // Must open during the tap gesture — after await, Safari blocks popups
+    var previewWindow = null;
+    if (isAppleWebKitMobile()) {
+      previewWindow = window.open("about:blank", "_blank");
+      if (previewWindow) {
+        try {
+          previewWindow.document.write(
+            "<!DOCTYPE html><title>Preparing PDF…</title>" +
+              "<body style=\"font-family:-apple-system,sans-serif;padding:2rem;color:#1e3a5f\">" +
+              "<p>Preparing your invoice PDF…</p></body>"
+          );
+          previewWindow.document.close();
+        } catch (e) {
+          /* ignore */
+        }
+      }
+    }
 
     btnDownload.disabled = true;
     btnDownload.textContent = "Preparing PDF…";
@@ -782,12 +919,19 @@
         addCanvasAsSinglePage(pdf, canvas2, pageW, pageH);
       }
 
-      // Ensure we never accidentally leave blank trailing pages
-      pdf.save(filename);
+      savePdfCompatible(pdf, filename, previewWindow);
     } catch (err) {
       if (window.console && console.error) console.error(err);
+      if (previewWindow && !previewWindow.closed) {
+        try {
+          previewWindow.close();
+        } catch (e) {
+          /* ignore */
+        }
+      }
       formError.hidden = false;
-      formError.textContent = "Could not create PDF. Please try again.";
+      formError.textContent =
+        "Could not create PDF. On iPhone Safari, allow pop-ups for this site and try again.";
     } finally {
       if (host && host.parentNode) host.parentNode.removeChild(host);
       btnDownload.textContent = "Download PDF";
