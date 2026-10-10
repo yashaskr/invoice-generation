@@ -124,4 +124,43 @@ test.describe("black-box: invoice generator", () => {
     await page.locator("label.template-option").filter({ hasText: "Classic" }).click();
     await expect(invoice).toHaveClass(/template-classic/);
   });
+
+  test("wine template uses solid PDF-safe accent colors", async ({ page }) => {
+    await prepareReadyInvoice(page);
+    await page.locator("label.template-option").filter({ hasText: "Wine" }).click();
+    const colors = await page.evaluate(() => {
+      const inv = document.getElementById("invoice");
+      const th = inv.querySelector(".inv-table th");
+      const badge = inv.querySelector(".inv-number");
+      const top = inv.querySelector(".inv-topbar");
+      return {
+        thBg: getComputedStyle(th).backgroundColor,
+        badgeColor: getComputedStyle(badge).color,
+        badgeBg: getComputedStyle(badge).backgroundColor,
+        topBg: getComputedStyle(top).backgroundColor,
+      };
+    });
+    expect(colors.thBg).toBe("rgb(159, 18, 57)");
+    expect(colors.topBg).toBe("rgb(159, 18, 57)");
+    expect(colors.badgeBg).toBe("rgb(252, 231, 243)");
+    expect(colors.badgeColor).toBe("rgb(157, 23, 77)");
+  });
+
+  test("wine template downloads a single-page PDF", async ({ page }, testInfo) => {
+    test.skip(/mobile/i.test(testInfo.project.name), "download event is desktop-oriented");
+    await prepareReadyInvoice(page);
+    await page.locator("label.template-option").filter({ hasText: "Wine" }).click();
+    const downloadPromise = page.waitForEvent("download", { timeout: 45_000 });
+    await page.locator("#btn-download").click();
+    const download = await downloadPromise;
+    const filePath = path.join(
+      testInfo.outputDir,
+      await download.suggestedFilename()
+    );
+    await download.saveAs(filePath);
+    expect(fs.statSync(filePath).size).toBeGreaterThan(20_000);
+    const pdfParse = require("pdf-parse");
+    const data = await pdfParse(fs.readFileSync(filePath));
+    expect(data.numpages).toBe(1);
+  });
 });

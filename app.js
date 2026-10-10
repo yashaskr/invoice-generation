@@ -648,17 +648,29 @@
     el.style.minHeight = "0";
     el.style.transform = "none";
 
+    var softBg = "#ffffff";
+    if (el.classList.contains("template-ember")) softBg = "#fffdf8";
+    else if (el.classList.contains("template-ocean")) softBg = "#f8fbff";
+    else if (el.classList.contains("template-wine")) softBg = "#fffafb";
+
     return html2canvasFn(el, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
-      backgroundColor: "#ffffff",
+      backgroundColor: softBg,
       logging: false,
       scrollX: 0,
       scrollY: 0,
       width: EXPORT_WIDTH_PX,
       windowWidth: EXPORT_WIDTH_PX,
       windowHeight: Math.max(el.scrollHeight, el.offsetHeight, 1),
+      onclone: function (_doc, cloned) {
+        // html2canvas can miss some cascaded colors; pin critical table header text.
+        var ths = cloned.querySelectorAll(".inv-table th");
+        for (var i = 0; i < ths.length; i++) {
+          ths[i].style.color = "#ffffff";
+        }
+      },
     });
   }
 
